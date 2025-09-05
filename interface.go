@@ -19,6 +19,13 @@ type (
 	Workbook interface {
 		SheetCount() int
 		GetSheet(index int) (Sheet, error)
+		IterateSheet(index int) (RowIterator, error)
+	}
+
+	RowIterator interface {
+		Next() bool
+		Current() (Row, error)
+		Close() error
 	}
 )
 
@@ -29,4 +36,6 @@ var (
 	ErrInvalidValueType = errors.New("eorm: invalid value type")
 	// ErrInvalidCellValue #NULL!, #DIV/0!, #VALUE!, #REF!, #NAME?, #NUM!!, #N/A
 	ErrInvalidCellValue = errors.New("eorm: invalid cell value")
+	ErrNotInitialized   = errors.New("eorm: not initialized")
+	ErrEof              = errors.New("eorm: eof")
 )

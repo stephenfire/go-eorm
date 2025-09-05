@@ -150,6 +150,11 @@ type (
 		sheet    *xls.Sheet
 	}
 
+	xlsRowIterator struct {
+		curRow int
+		sheet  *xlsSheet
+	}
+
 	xlsWorkbook struct {
 		workbook xls.Workbook
 	}
@@ -207,11 +212,28 @@ func (x *xlsSheet) GetRow(index int) (Row, error) {
 	return &xlsRow{cols: cols}, nil
 }
 
+func (x *xlsRowIterator) Next() bool {
+	x.curRow++
+	return x.curRow < x.sheet.rowCount
+}
+
+func (x *xlsRowIterator) Current() (Row, error) {
+	if x.curRow < 0 {
+		return nil, ErrNotInitialized
+	}
+	if x.curRow >= x.sheet.rowCount {
+		return nil, ErrEof
+	}
+	return x.sheet.GetRow(x.curRow)
+}
+
+func (x *xlsRowIterator) Close() error { return nil }
+
 func (x *xlsWorkbook) SheetCount() int {
 	return x.workbook.GetNumberSheets()
 }
 
-func (x *xlsWorkbook) GetSheet(index int) (Sheet, error) {
+func (x *xlsWorkbook) getSheet(index int) (*xlsSheet, error) {
 	sheet, err := x.workbook.GetSheet(index)
 	if err != nil {
 		return nil, fmt.Errorf("eorm/xls: %w", err)
@@ -221,6 +243,18 @@ func (x *xlsWorkbook) GetSheet(index int) (Sheet, error) {
 		rowCount = sheet.GetNumberRows()
 	}
 	return &xlsSheet{sheet: sheet, rowCount: rowCount}, nil
+}
+
+func (x *xlsWorkbook) GetSheet(index int) (Sheet, error) {
+	return x.getSheet(index)
+}
+
+func (x *xlsWorkbook) IterateSheet(index int) (RowIterator, error) {
+	sheet, err := x.getSheet(index)
+	if err != nil {
+		return nil, err
+	}
+	return &xlsRowIterator{curRow: -1, sheet: sheet}, nil
 }
 
 func NewXlsWorkbook(filePath string) (Workbook, error) {

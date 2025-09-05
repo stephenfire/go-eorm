@@ -18,6 +18,10 @@ type (
 		allRows [][]string
 	}
 
+	xlsxRowIterator struct {
+		rows *excelize.Rows
+	}
+
 	xlsxRow []string
 )
 
@@ -43,6 +47,17 @@ func (x *xlsxWorkbook) GetSheet(index int) (Sheet, error) {
 		return nil, fmt.Errorf("eorm/excelize: %w", err)
 	}
 	return &xlsxSheet{allRows: rows}, nil
+}
+
+func (x *xlsxWorkbook) IterateSheet(index int) (RowIterator, error) {
+	if index < 0 || index >= len(x.names) {
+		return nil, ErrOutOfRange
+	}
+	rows, err := x.f.Rows(x.names[index])
+	if err != nil {
+		return nil, fmt.Errorf("eorm/excelize: %w", err)
+	}
+	return &xlsxRowIterator{rows: rows}, nil
 }
 
 func (x xlsxSheet) RowCount() int {
@@ -108,4 +123,20 @@ func (x xlsxRow) GetBoolColumn(index int) (bool, error) {
 	default:
 		return false, fmt.Errorf("eorm: parse xlsx string to bool failed: unknown value: %s", v)
 	}
+}
+
+func (x xlsxRowIterator) Next() bool {
+	return x.rows.Next()
+}
+
+func (x xlsxRowIterator) Current() (Row, error) {
+	row, err := x.rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("eorm/excelize: %w", err)
+	}
+	return xlsxRow(row), nil
+}
+
+func (x xlsxRowIterator) Close() error {
+	return x.rows.Close()
 }
