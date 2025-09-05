@@ -72,7 +72,7 @@ func (x XlsCell) ToFloat64(data structure.CellData) (float64, error) {
 	case XlsCellString:
 		f, err := strconv.ParseFloat(data.GetString(), 64)
 		if err != nil {
-			return 0, fmt.Errorf("eorm: parse string to float64 failed %w", err)
+			return 0, fmt.Errorf("eorm: parse xls string to float64 failed: %w", err)
 		}
 		return f, nil
 	case XlsCellFloat:
@@ -97,7 +97,7 @@ func (x XlsCell) ToInt64(data structure.CellData) (int64, error) {
 	case XlsCellString:
 		i, err := strconv.ParseInt(data.GetString(), 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("eorm: parse string to int64 failed %w", err)
+			return 0, fmt.Errorf("eorm: parse xls string to int64 failed: %w", err)
 		}
 		return i, nil
 	case XlsCellFloat:
