@@ -19,11 +19,18 @@ func TestNameEncode(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got := NameEncode(test.in)
-		fmt.Printf("[%s] => [%s]\n", test.in, got)
+		got := TitleEscape(test.in)
 		if got != test.out {
-			t.Fatalf("NameEncode(%q) = %q, want %q", test.in, got, test.out)
+			t.Fatalf("TitleEscape(%q) = %q, want %q", test.in, got, test.out)
 		}
+		un, err := TitleUnescape(got)
+		if err != nil {
+			t.Fatalf("TitleUnescape(%q): %v", got, err)
+		}
+		if un != test.in {
+			t.Fatalf("TitleUnescape(%q) = %q, want %q", got, un, test.in)
+		}
+		fmt.Printf("[%s] => [%s] <= [%s]\n", test.in, got, un)
 	}
 	t.Log("TestNameEncode OK")
 }
