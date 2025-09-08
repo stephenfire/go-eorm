@@ -20,6 +20,7 @@ type (
 		SheetCount() int
 		GetSheet(index int) (Sheet, error)
 		IterateSheet(index int) (RowIterator, error)
+		Close() error
 	}
 
 	RowIterator interface {

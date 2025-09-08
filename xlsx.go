@@ -60,6 +60,14 @@ func (x *xlsxWorkbook) IterateSheet(index int) (RowIterator, error) {
 	return &xlsxRowIterator{rows: rows}, nil
 }
 
+func (x *xlsxWorkbook) Close() error {
+	err := x.f.Close()
+	if err != nil {
+		return fmt.Errorf("eorm/excelize: %w", err)
+	}
+	return nil
+}
+
 func (x xlsxSheet) RowCount() int {
 	return len(x.allRows)
 }

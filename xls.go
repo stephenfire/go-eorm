@@ -114,7 +114,7 @@ func (x XlsCell) ToInt64(data structure.CellData) (int64, error) {
 func (x XlsCell) ToBool(data structure.CellData) (bool, error) {
 	switch x.Type(data) {
 	case XlsCellBlank:
-		return false, ErrInvalidValueType
+		return false, nil
 	case XlsCellBoolOrErr:
 		s := strings.ToUpper(data.GetString())
 		switch s {
@@ -255,6 +255,10 @@ func (x *xlsWorkbook) IterateSheet(index int) (RowIterator, error) {
 		return nil, err
 	}
 	return &xlsRowIterator{curRow: -1, sheet: sheet}, nil
+}
+
+func (x *xlsWorkbook) Close() error {
+	return nil
 }
 
 func NewXlsWorkbook(filePath string) (Workbook, error) {
