@@ -72,7 +72,7 @@ func (x XlsCell) ToFloat64(data structure.CellData) (float64, error) {
 	case XlsCellString:
 		f, err := strconv.ParseFloat(data.GetString(), 64)
 		if err != nil {
-			return 0, fmt.Errorf("eorm: parse xls string to float64 failed: %w", err)
+			return 0, fmt.Errorf("excel/xls: parse string to float64 failed: %w", err)
 		}
 		return f, nil
 	case XlsCellFloat:
@@ -82,7 +82,7 @@ func (x XlsCell) ToFloat64(data structure.CellData) (float64, error) {
 	case XlsCellNil:
 		return 0, ErrNil
 	default:
-		return 0, fmt.Errorf("eorm: unknown cell type: %v", data.GetType())
+		return 0, fmt.Errorf("excel/xls: unknown cell type: %v", data.GetType())
 	}
 }
 
@@ -97,7 +97,7 @@ func (x XlsCell) ToInt64(data structure.CellData) (int64, error) {
 	case XlsCellString:
 		i, err := strconv.ParseInt(data.GetString(), 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("eorm: parse xls string to int64 failed: %w", err)
+			return 0, fmt.Errorf("excel/xls: parse string to int64 failed: %w", err)
 		}
 		return i, nil
 	case XlsCellFloat:
@@ -107,7 +107,7 @@ func (x XlsCell) ToInt64(data structure.CellData) (int64, error) {
 	case XlsCellNil:
 		return 0, ErrNil
 	default:
-		return 0, fmt.Errorf("eorm: unknown cell type: %v", data.GetType())
+		return 0, fmt.Errorf("excel/xls: unknown cell type: %v", data.GetType())
 	}
 }
 
@@ -136,7 +136,7 @@ func (x XlsCell) ToBool(data structure.CellData) (bool, error) {
 	case XlsCellNil:
 		return false, ErrNil
 	default:
-		return false, fmt.Errorf("eorm: unknown cell type: %v", data.GetType())
+		return false, fmt.Errorf("excel/xls: unknown cell type: %v", data.GetType())
 	}
 }
 
@@ -206,7 +206,7 @@ func (x *xlsSheet) GetRow(index int) (Row, error) {
 	}
 	row, err := x.sheet.GetRow(index)
 	if err != nil {
-		return nil, fmt.Errorf("eorm/xls: %w", err)
+		return nil, fmt.Errorf("excel/xls: %w", err)
 	}
 	cols := row.GetCols()
 	return &xlsRow{cols: cols}, nil
@@ -236,7 +236,7 @@ func (x *xlsWorkbook) SheetCount() int {
 func (x *xlsWorkbook) getSheet(index int) (*xlsSheet, error) {
 	sheet, err := x.workbook.GetSheet(index)
 	if err != nil {
-		return nil, fmt.Errorf("eorm/xls: %w", err)
+		return nil, fmt.Errorf("excel/xls: %w", err)
 	}
 	rowCount := 0
 	if sheet != nil {
@@ -264,7 +264,7 @@ func (x *xlsWorkbook) Close() error {
 func NewXlsWorkbook(filePath string) (Workbook, error) {
 	workbook, err := xls.OpenFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("eorm/xls: %w", err)
+		return nil, fmt.Errorf("excel/xls: %w", err)
 	}
 	return &xlsWorkbook{workbook: workbook}, nil
 }

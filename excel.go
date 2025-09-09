@@ -31,12 +31,12 @@ type (
 )
 
 var (
-	ErrNotFound         = errors.New("eorm: not found")
-	ErrOutOfRange       = errors.New("eorm: out of range")
-	ErrNil              = errors.New("eorm: nil")
-	ErrInvalidValueType = errors.New("eorm: invalid value type")
+	ErrNotFound         = errors.New("excel: not found")
+	ErrOutOfRange       = errors.New("excel: out of range")
+	ErrNil              = errors.New("excel: nil")
+	ErrInvalidValueType = errors.New("excel: invalid value type")
 	// ErrInvalidCellValue #NULL!, #DIV/0!, #VALUE!, #REF!, #NAME?, #NUM!!, #N/A
-	ErrInvalidCellValue = errors.New("eorm: invalid cell value")
-	ErrNotInitialized   = errors.New("eorm: not initialized")
-	ErrEof              = errors.New("eorm: eof")
+	ErrInvalidCellValue = errors.New("excel: invalid cell value")
+	ErrNotInitialized   = errors.New("excel: not initialized")
+	ErrEof              = errors.New("excel: eof")
 )

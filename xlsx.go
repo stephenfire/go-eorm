@@ -28,7 +28,7 @@ type (
 func NewXlsxWorkbook(filePath string) (Workbook, error) {
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("eorm/excelize: %w", err)
+		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
 	names := f.GetSheetList()
 	return &xlsxWorkbook{names: names, f: f}, nil
@@ -44,7 +44,7 @@ func (x *xlsxWorkbook) GetSheet(index int) (Sheet, error) {
 	}
 	rows, err := x.f.GetRows(x.names[index])
 	if err != nil {
-		return nil, fmt.Errorf("eorm/excelize: %w", err)
+		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
 	return &xlsxSheet{allRows: rows}, nil
 }
@@ -55,7 +55,7 @@ func (x *xlsxWorkbook) IterateSheet(index int) (RowIterator, error) {
 	}
 	rows, err := x.f.Rows(x.names[index])
 	if err != nil {
-		return nil, fmt.Errorf("eorm/excelize: %w", err)
+		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
 	return &xlsxRowIterator{rows: rows}, nil
 }
@@ -63,7 +63,7 @@ func (x *xlsxWorkbook) IterateSheet(index int) (RowIterator, error) {
 func (x *xlsxWorkbook) Close() error {
 	err := x.f.Close()
 	if err != nil {
-		return fmt.Errorf("eorm/excelize: %w", err)
+		return fmt.Errorf("excel/xlsx: %w", err)
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ func (x xlsxRow) GetInt64Column(index int) (int64, error) {
 
 	i, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("eorm: parse xlsx string to int64 failed: %w", err)
+		return 0, fmt.Errorf("excel/xlsx: parse string to int64 failed: %w", err)
 	}
 	return i, nil
 }
@@ -111,7 +111,7 @@ func (x xlsxRow) GetFloat64Column(index int) (float64, error) {
 
 	f, err := strconv.ParseFloat(v, 64)
 	if err != nil {
-		return 0, fmt.Errorf("eorm: parse xlsx string to float64 failed: %w", err)
+		return 0, fmt.Errorf("excel/xlsx: parse string to float64 failed: %w", err)
 	}
 	return f, nil
 }
@@ -129,7 +129,7 @@ func (x xlsxRow) GetBoolColumn(index int) (bool, error) {
 	case "FALSE":
 		return false, nil
 	default:
-		return false, fmt.Errorf("eorm: parse xlsx string to bool failed: unknown value: %s", v)
+		return false, fmt.Errorf("excel/xlsx: parse string to bool failed: unknown value: %s", v)
 	}
 }
 
@@ -140,7 +140,7 @@ func (x xlsxRowIterator) Next() bool {
 func (x xlsxRowIterator) Current() (Row, error) {
 	row, err := x.rows.Columns()
 	if err != nil {
-		return nil, fmt.Errorf("eorm/excelize: %w", err)
+		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
 	return xlsxRow(row), nil
 }
