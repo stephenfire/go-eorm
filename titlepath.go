@@ -155,6 +155,14 @@ func (tp TitlePath) Decode(namepath string) (TitlePath, error) {
 	return parts, nil
 }
 
+func MustTitlePath(path string) TitlePath {
+	tp, err := TitlePath(nil).Decode(path)
+	if err != nil {
+		panic(err)
+	}
+	return tp
+}
+
 type (
 	// TreeItem 只支持由上而下的树状结构构建的表头，每一个TreeItem都有其明确的父节点
 	TreeItem[T any] interface {
@@ -303,21 +311,46 @@ func (p *PathTree[T]) Put(val T, path TitlePath) error {
 
 // TitleLayer 从 PathTree 的根开始，带有传承的记录每一级根据列内容匹配的列和对应的节点
 // 当 key == -1 时，表示所有列都匹配的节点。初始化时的值为 {-1: root}
-type TitleLayer[T any] map[int]TreeItem[T]
+type TitleLayer[T any] struct {
+	m        map[int]TreeItem[T]
+	maxWidth int
+}
 
-func (m TitleLayer[T]) At(index int) (TreeItem[T], bool) {
-	item, ok := m[index]
+func NewTitleLayer[T any](root TreeItem[T]) *TitleLayer[T] {
+	return &TitleLayer[T]{
+		m:        map[int]TreeItem[T]{-1: root},
+		maxWidth: 0,
+	}
+}
+
+func (m *TitleLayer[T]) Size() int {
+	return len(m.m)
+}
+
+func (m *TitleLayer[T]) At(index int) (TreeItem[T], bool) {
+	item, ok := m.m[index]
 	if ok && item != nil {
 		return item, true
 	}
-	item, ok = m[-1]
+	item, ok = m.m[-1]
 	return item, ok && item != nil
 }
 
-func (m TitleLayer[T]) NextRow(row Row) (TitleLayer[T], error) {
+func (m *TitleLayer[T]) NextRow(row Row) (*TitleLayer[T], error) {
 	lastVal := ""
 	var next tools.KMap[int, TreeItem[T]]
-	for i := 0; i < row.ColumnCount(); i++ {
+	putNext := func(idx int) {
+		item, ok := m.At(idx)
+		if !ok {
+			return
+		}
+		child := item.GetChild(lastVal)
+		if child != nil {
+			next = next.Put(idx, child)
+		}
+	}
+	colCount := row.ColumnCount()
+	for i := 0; i < colCount; i++ {
 		// 为了在内容为空时使用前面的值填充，所以按顺序读取所有列，一一进行匹配
 		val, err := row.GetColumn(i)
 		if err != nil {
@@ -328,16 +361,26 @@ func (m TitleLayer[T]) NextRow(row Row) (TitleLayer[T], error) {
 		} else {
 			lastVal = val
 		}
-		item, ok := m.At(i)
-		if !ok {
+		putNext(i)
+	}
+	for i := colCount; i < m.maxWidth; i++ {
+		putNext(i)
+	}
+	return &TitleLayer[T]{m: next, maxWidth: max(colCount, m.maxWidth)}, nil
+}
+
+func (m *TitleLayer[T]) Values() (map[int]T, error) {
+	var ret tools.KMap[int, T]
+	for idx, item := range m.m {
+		if item == nil {
 			continue
 		}
-		child := item.GetChild(lastVal)
-		if child != nil {
-			next = next.Put(i, child)
+		if !item.IsValue() {
+			return nil, fmt.Errorf("eorm: not a value at column %d", idx)
 		}
+		ret = ret.Put(idx, item.GetValue())
 	}
-	return TitleLayer[T](next), nil
+	return ret, nil
 }
 
 func MatchTitlePath[T any](tree *PathTree[T], sheet Sheet) (map[int]T, error) {
@@ -349,7 +392,7 @@ func MatchTitlePath[T any](tree *PathTree[T], sheet Sheet) (map[int]T, error) {
 	if rowCount < depth {
 		return nil, errors.New("eorm: row not enough")
 	}
-	layer := TitleLayer[T]{-1: tree.root}
+	layer := NewTitleLayer(tree.root)
 	for i := 0; i < depth; i++ {
 		row, err := sheet.GetRow(i)
 		if err != nil {
@@ -359,19 +402,12 @@ func MatchTitlePath[T any](tree *PathTree[T], sheet Sheet) (map[int]T, error) {
 			return nil, fmt.Errorf("eorm: get row %d nil", i)
 		}
 		layer, err = layer.NextRow(row)
+		if err != nil {
+			return nil, fmt.Errorf("eorm: layer next row %d: %w", i, err)
+		}
 	}
-	if len(layer) == 0 {
+	if layer.Size() == 0 {
 		return nil, nil
 	}
-	var ret tools.KMap[int, T]
-	for idx, item := range layer {
-		if item == nil {
-			continue
-		}
-		if !item.IsValue() {
-			return nil, fmt.Errorf("eorm: not a value at column %d", idx)
-		}
-		ret = ret.Put(idx, item.GetValue())
-	}
-	return ret, nil
+	return layer.Values()
 }
