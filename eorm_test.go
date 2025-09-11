@@ -36,9 +36,6 @@ func TestNewEORM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewEORM failed: %v", err)
 	}
-	defer func() {
-		_ = eorm.Close()
-	}()
 
 	// 验证EORM结构体字段
 	if eorm.objType != objType {

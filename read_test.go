@@ -3,6 +3,7 @@ package eorm
 import (
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/xuri/excelize/v2"
@@ -138,4 +139,41 @@ func TestAllMergeCells(t *testing.T) {
 	for _, mc := range mergeCells {
 		fmt.Printf("合并区域: %s - %s, 起始值: %s\n", mc.GetStartAxis(), mc.GetEndAxis(), mc.GetCellValue())
 	}
+}
+
+func TestEORM(t *testing.T) {
+	objType := reflect.TypeOf(TestUser{})
+	eorm, err := NewEORM[TestUser](filepath.Join("testdata", "title.xlsx"), objType)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Sheet count: %d\n", eorm.wb.SheetCount())
+
+	sheet, err := eorm.wb.GetSheet(0)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Row count: %d\n", sheet.RowCount())
+
+	// 查看前几行
+	for i := 0; i < 5 && i < sheet.RowCount(); i++ {
+		row, err := sheet.GetRow(i)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("Row %d: ", i)
+		for j := 0; j < row.ColumnCount(); j++ {
+			val, err := row.GetColumn(j)
+			if err != nil {
+				fmt.Printf("ERROR ")
+				continue
+			}
+			fmt.Printf("'%s' ", val)
+		}
+		fmt.Println()
+	}
+
 }

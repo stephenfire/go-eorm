@@ -33,6 +33,10 @@ type (
 		Current() (Row, error)
 		Close() error
 	}
+
+	RowReader struct {
+		Row
+	}
 )
 
 var (
@@ -63,4 +67,8 @@ func NewWorkbook(filePath string) (Workbook, error) {
 		return nil, fmt.Errorf("eorm: failed to open workbook: %w", err)
 	}
 	return wb, nil
+}
+
+func (r RowReader) GetColumns(indexes ...int) ([]string, error) {
+
 }

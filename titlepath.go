@@ -387,6 +387,7 @@ func (m *TitleLayer[T]) Values() (map[int]T, error) {
 	return ret, nil
 }
 
+// MatchTitlePath returns column index to value mapping
 func MatchTitlePath[T any](tree *PathTree[T], sheet Sheet) (map[int]T, error) {
 	depth, err := tree.Check()
 	if err != nil {
