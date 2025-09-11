@@ -1,6 +1,11 @@
 package eorm
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
+)
 
 type (
 	Row interface {
@@ -40,3 +45,22 @@ var (
 	ErrNotInitialized   = errors.New("excel: not initialized")
 	ErrEof              = errors.New("excel: eof")
 )
+
+func NewWorkbook(filePath string) (Workbook, error) {
+	// 根据文件扩展名选择合适的Workbook实现
+	var wb Workbook
+	var err error
+	ext := strings.ToLower(filepath.Ext(filePath))
+	switch ext {
+	case ".xlsx":
+		wb, err = NewXlsxWorkbook(filePath)
+	case ".xls":
+		wb, err = NewXlsWorkbook(filePath)
+	default:
+		return nil, fmt.Errorf("eorm: unsupported file format: %s", ext)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("eorm: failed to open workbook: %w", err)
+	}
+	return wb, nil
+}

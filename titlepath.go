@@ -155,6 +155,10 @@ func (tp TitlePath) Decode(namepath string) (TitlePath, error) {
 	return parts, nil
 }
 
+func (tp TitlePath) String() string {
+	return tp.Encode()
+}
+
 func MustTitlePath(path string) TitlePath {
 	tp, err := TitlePath(nil).Decode(path)
 	if err != nil {
