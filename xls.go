@@ -219,7 +219,7 @@ func (x *xlsRowIterator) Next() bool {
 
 func (x *xlsRowIterator) Current() (Row, error) {
 	if x.curRow < 0 {
-		return nil, ErrNotInitialized
+		return nil, ErrExcelNotInitialized
 	}
 	if x.curRow >= x.sheet.rowCount {
 		return nil, ErrEof

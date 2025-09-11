@@ -45,9 +45,9 @@ var (
 	ErrNil              = errors.New("excel: nil")
 	ErrInvalidValueType = errors.New("excel: invalid value type")
 	// ErrInvalidCellValue #NULL!, #DIV/0!, #VALUE!, #REF!, #NAME?, #NUM!!, #N/A
-	ErrInvalidCellValue = errors.New("excel: invalid cell value")
-	ErrNotInitialized   = errors.New("excel: not initialized")
-	ErrEof              = errors.New("excel: eof")
+	ErrInvalidCellValue    = errors.New("excel: invalid cell value")
+	ErrExcelNotInitialized = errors.New("excel: not initialized")
+	ErrEof                 = errors.New("excel: eof")
 )
 
 func NewWorkbook(filePath string) (Workbook, error) {
@@ -67,8 +67,4 @@ func NewWorkbook(filePath string) (Workbook, error) {
 		return nil, fmt.Errorf("eorm: failed to open workbook: %w", err)
 	}
 	return wb, nil
-}
-
-func (r RowReader) GetColumns(indexes ...int) ([]string, error) {
-
 }

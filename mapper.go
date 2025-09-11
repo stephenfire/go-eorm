@@ -128,7 +128,123 @@ func (m *ColumnMapper) SetValue(rowData reflect.Value, row Row, columnIndexes []
 	if len(columnIndexes) == 0 {
 		return nil
 	}
+
+	// 获取字段值
+	var fieldValue reflect.Value
+	var err error
+
+	if m.mappingType.IsSlice() {
+		// 处理切片类型
+		fieldValue, err = m.getSliceValue(row, columnIndexes)
+	} else {
+		// 处理单值类型
+		if len(columnIndexes) > 1 {
+			return fmt.Errorf("eorm: single value mapping type requires exactly one column, got %d", len(columnIndexes))
+		}
+		fieldValue, err = m.getSingleValue(row, columnIndexes[0])
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// 设置字段值
+	if m.HasSetter {
+		// 调用 Setter 方法
+		method := m.Setter
+		methodValue := rowData.MethodByName(method.Name)
+		if !methodValue.IsValid() {
+			return fmt.Errorf("eorm: setter method %s not found", method.Name)
+		}
+		methodValue.Call([]reflect.Value{fieldValue})
+	} else {
+		// 直接设置字段值
+		field := rowData.Elem().Field(m.fieldIndex)
+		if !field.CanSet() {
+			return fmt.Errorf("eorm: field %s is not settable", m.fieldName)
+		}
+		field.Set(fieldValue)
+	}
+
 	return nil
+}
+
+func (m *ColumnMapper) getSingleValue(row Row, columnIndex int) (reflect.Value, error) {
+	switch m.mappingType {
+	case MTString:
+		val, err := row.GetColumn(columnIndex)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		return reflect.ValueOf(val), nil
+	case MTInt64:
+		val, err := row.GetInt64Column(columnIndex)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		return reflect.ValueOf(val), nil
+	case MTFloat64:
+		val, err := row.GetFloat64Column(columnIndex)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		return reflect.ValueOf(val), nil
+	case MTBool:
+		val, err := row.GetBoolColumn(columnIndex)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		return reflect.ValueOf(val), nil
+	default:
+		return reflect.Value{}, fmt.Errorf("eorm: unsupported single value mapping type: %s", m.mappingType)
+	}
+}
+
+func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int) (reflect.Value, error) {
+	switch m.mappingType {
+	case MTStringSlice:
+		slice := make([]string, len(columnIndexes))
+		for i, colIdx := range columnIndexes {
+			val, err := row.GetColumn(colIdx)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			slice[i] = val
+		}
+		return reflect.ValueOf(slice), nil
+	case MTInt64Slice:
+		slice := make([]int64, len(columnIndexes))
+		for i, colIdx := range columnIndexes {
+			val, err := row.GetInt64Column(colIdx)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			slice[i] = val
+		}
+		return reflect.ValueOf(slice), nil
+	case MTFloat64Slice:
+		slice := make([]float64, len(columnIndexes))
+		for i, colIdx := range columnIndexes {
+			val, err := row.GetFloat64Column(colIdx)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			slice[i] = val
+		}
+		return reflect.ValueOf(slice), nil
+	case MTBoolSlice:
+		slice := make([]bool, len(columnIndexes))
+		for i, colIdx := range columnIndexes {
+			val, err := row.GetBoolColumn(colIdx)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			slice[i] = val
+		}
+		return reflect.ValueOf(slice), nil
+	default:
+		return reflect.Value{}, fmt.Errorf("eorm: unsupported slice mapping type: %s", m.mappingType)
+	}
 }
 
 // findSetterMethod 查找对应的setter方法

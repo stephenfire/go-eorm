@@ -192,11 +192,6 @@ type (
 	}
 )
 
-var (
-	ErrEmptyPath   = errors.New("eorm: empty path")
-	ErrUnsupported = errors.New("eorm: unsupported")
-)
-
 func newBranch[T any]() branch[T]                                  { return make(branch[T]) }
 func (b branch[T]) IsValue() bool                                  { return false }
 func (b branch[T]) HasValue() bool                                 { return false }
