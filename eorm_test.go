@@ -13,10 +13,10 @@ import (
 
 // TestUser 测试用的结构体，包含各种eorm标签
 type TestUser struct {
-	ID     int    `eorm:"序号//"`
+	ID     int64  `eorm:"序号//"`
 	Name   string `eorm:"名称//"`
 	Email  string `eorm:"第一级/邮箱/地址"`
-	Age    int    `eorm:"第一级/年龄/数值"`
+	Age    int64  `eorm:"第一级/年龄/数值"`
 	Active bool   `eorm:"状态//"`
 }
 
@@ -105,6 +105,8 @@ func TestTitle1(t *testing.T) {
 		if !expectings[i].Equals(rowObj) {
 			t.Fatalf("eorm: expected %+v, got %+v", expectings[i], rowObj)
 		}
+		t.Logf("%d: %s check", i, rowObj)
+		i++
 	}
 }
 

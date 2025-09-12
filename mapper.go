@@ -200,48 +200,44 @@ func (m *ColumnMapper) getSingleValue(row Row, columnIndex int) (reflect.Value, 
 	}
 }
 
+func toValue[T any](v T, err error) (reflect.Value, error) {
+	if err != nil {
+		return reflect.Value{}, err
+	}
+	return reflect.ValueOf(v), nil
+}
+
 func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int) (reflect.Value, error) {
+	sliceMap := func(getter func(row Row, index int) (reflect.Value, error)) (reflect.Value, error) {
+		slice := reflect.MakeSlice(m.fieldType, len(columnIndexes), len(columnIndexes))
+		for i, colIdx := range columnIndexes {
+			val, err := getter(row, colIdx)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			elemValue := val.Convert(m.fieldType.Elem())
+			slice.Index(i).Set(elemValue)
+		}
+		return reflect.ValueOf(slice), nil
+	}
+
 	switch m.mappingType {
 	case MTStringSlice:
-		slice := make([]string, len(columnIndexes))
-		for i, colIdx := range columnIndexes {
-			val, err := row.GetColumn(colIdx)
-			if err != nil {
-				return reflect.Value{}, err
-			}
-			slice[i] = val
-		}
-		return reflect.ValueOf(slice), nil
+		return sliceMap(func(row Row, index int) (reflect.Value, error) {
+			return toValue(row.GetColumn(index))
+		})
 	case MTInt64Slice:
-		slice := make([]int64, len(columnIndexes))
-		for i, colIdx := range columnIndexes {
-			val, err := row.GetInt64Column(colIdx)
-			if err != nil {
-				return reflect.Value{}, err
-			}
-			slice[i] = val
-		}
-		return reflect.ValueOf(slice), nil
+		return sliceMap(func(row Row, index int) (reflect.Value, error) {
+			return toValue(row.GetInt64Column(index))
+		})
 	case MTFloat64Slice:
-		slice := make([]float64, len(columnIndexes))
-		for i, colIdx := range columnIndexes {
-			val, err := row.GetFloat64Column(colIdx)
-			if err != nil {
-				return reflect.Value{}, err
-			}
-			slice[i] = val
-		}
-		return reflect.ValueOf(slice), nil
+		return sliceMap(func(row Row, index int) (reflect.Value, error) {
+			return toValue(row.GetFloat64Column(index))
+		})
 	case MTBoolSlice:
-		slice := make([]bool, len(columnIndexes))
-		for i, colIdx := range columnIndexes {
-			val, err := row.GetBoolColumn(colIdx)
-			if err != nil {
-				return reflect.Value{}, err
-			}
-			slice[i] = val
-		}
-		return reflect.ValueOf(slice), nil
+		return sliceMap(func(row Row, index int) (reflect.Value, error) {
+			return toValue(row.GetBoolColumn(index))
+		})
 	default:
 		return reflect.Value{}, fmt.Errorf("eorm: unsupported slice mapping type: %s", m.mappingType)
 	}

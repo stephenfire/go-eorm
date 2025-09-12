@@ -68,6 +68,7 @@
 #### 数组值映射
 
 对于值不唯一的`title_path`，分为下列两种情况:
+
 * 如果不使用`setter`映射，则对应的类型属性必须是切片类型，如果切片类型的$Elem$类型又是缺省类型，则缺省逻辑可以自动映射
 * 如果使用`setter`映射，则对应`setter`方法参数必须是切片类型
 
@@ -77,6 +78,34 @@
 
 如果属性类型不是缺省类型，或用户希望自定义解析逻辑，则可以使用`setter`方法进行映射。
 
-通过为类型增加签名为 $Set$_AttributeName_`(s string)` 的方法定义`setter`方法，其中_AttributeName_即为类型属性名，参数为`string`
+通过为类型增加签名为 $Set$_AttributeName_`(s ~string|~int64|~float64|~bool)` 的方法定义`setter`
+方法，其中_AttributeName_即为类型属性名，参数为`~string|~int64|~float64|~bool`
 
-通过为类型增加签名为 $Set$_AttributeName_`(ss []string)` 的方法定义数组`setter`方法，其中_AttributeName_为类型属性名，参数类型为`string`的切片
+通过为类型增加签名为 $Set$_AttributeName_`(ss []~string|[]~int64|[]~float64|[]~bool)` 的方法定义数组`setter`
+方法，其中_AttributeName_为类型属性名，参数类型为`~string|~int64|~float64|~bool`的切片
+
+### 映射方法
+
+RowMapper[T]对象的主要功能是把Row转换为一个类型为*T的对象。其中：
+
+* RowMapper.typ属性是T类型的reflect.Type。
+* RowMapper.fields保存所有类型T中所有需要映射的属性和信息ColumnMapper
+* RowMapper.columns保存T中每一个需要映射的属性值需要由Row中哪些列的值构成。
+
+ColumnMapper中保存了属性值的构成方法，分为两种：
+
+* 当ColumnMapper.HasSetter==false时，直接赋值给属性值
+* 当ColumnMapper.HasSetter==true时，通过ColumnMapper.Setter保存的*T的方法设置属性值。
+
+无论是哪种方式，值的类型都保存在ColumnMapper.fieldType中，而值类型的Kind()只能是string, int64, float64, bool, []string, []
+int64, []float64, []bool之一。
+
+转换方法为RowMapper.Transit(row Row) (*T, error)方法，其步骤为：
+
+1. 遍历由对象属性fieldIndex到Row中列columnIndexes的映射表RowMapper.columns，当映射到多列时，也就是len(columnIndexes)>
+   1，值类型必须是[]string, []int64, []float64, []bool之一。
+2. 遍历columnIndexes，从row中获取各列对应的值，并转换为ColumnMapper.fieldType的类型，得到fieldValue
+3. 创建RowMapper.typ类型对应的指针对象rowData
+4. 当ColumnMapper.HasSetter==false时，将fieldValue直接赋值给rowData对应index为fieldIndex的属性
+5. 当ColumnMapper.HasSetter==true时，将fieldValue传递给rowData对象对应的ColumnMapper.Setter方法，完成值设置。
+6. 返回新创建的rowData
