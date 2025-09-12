@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/stephenfire/go-common/math"
@@ -124,6 +125,12 @@ type TitleObj2 struct {
 
 func (t *TitleObj2) SetSlash(in int64) {
 	t.Slash = big.NewInt(in)
+}
+
+func (t *TitleObj2) SetNumbers(in []int64) {
+	t.Numbers = tools.TsToSs(func(t int64) (S, bool) {
+		return S(strconv.FormatInt(t, 10)), true
+	}, in...)
 }
 
 func (t *TitleObj2) Equals(o *TitleObj2) bool {
