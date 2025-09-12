@@ -40,6 +40,7 @@ type TitleObj1 struct {
 	Numbers []Integer `eorm:"第一级/第二级/第三级"`
 	Bool    bool      `eorm:"第一级/反引号%60测试/空%20格"`
 	Slash   *big.Int  `eorm:"第一级/双引号%22测试/反斜杠%5C"`
+	Num     Integer   `eorm:"第一级/双引号%22测试/第三级"`
 }
 
 func (t *TitleObj1) SetSlash(in int64) {
@@ -56,14 +57,15 @@ func (t *TitleObj1) Equals(o *TitleObj1) bool {
 	return t.Id == o.Id && t.Name == o.Name &&
 		tools.KS[Integer](t.Numbers).Equal(o.Numbers) &&
 		t.Bool == o.Bool &&
-		math.CompareBigInt(t.Slash, o.Slash) == 0
+		math.CompareBigInt(t.Slash, o.Slash) == 0 &&
+		t.Num == o.Num
 }
 
 func (t *TitleObj1) String() string {
 	if t == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("{id:%d name:%s numbers:%v bool:%t slash:%s}", t.Id, t.Name, t.Numbers, t.Bool, math.BigIntForPrint(t.Slash))
+	return fmt.Sprintf("{id:%d name:%s numbers:%v bool:%t slash:%s num:%d}", t.Id, t.Name, t.Numbers, t.Bool, math.BigIntForPrint(t.Slash), t.Num)
 }
 
 func TestTitle1(t *testing.T) {
@@ -89,8 +91,87 @@ func TestTitle1(t *testing.T) {
 	}
 
 	expectings := []*TitleObj1{
-		&TitleObj1{Id: 10, Name: "name10", Numbers: []Integer{16, 17}, Bool: true, Slash: big.NewInt(14)},
-		&TitleObj1{Id: 20, Name: "name20", Numbers: []Integer{26, 27}, Bool: false, Slash: big.NewInt(24)},
+		&TitleObj1{Id: 10, Name: "name10", Numbers: []Integer{16, 17}, Bool: true, Slash: big.NewInt(14), Num: Integer(15)},
+		&TitleObj1{Id: 20, Name: "name20", Numbers: []Integer{26, 27}, Bool: false, Slash: big.NewInt(24), Num: Integer(25)},
+	}
+
+	i := 0
+	for eorm.Next() {
+		rowObj, err := eorm.Current()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i >= len(expectings) {
+			t.Fatalf("eorm: expected %d rows, got %d", len(expectings), i+1)
+		}
+		if !expectings[i].Equals(rowObj) {
+			t.Fatalf("eorm: expected %+v, got %+v", expectings[i], rowObj)
+		}
+		t.Logf("%d: %s check", i, rowObj)
+		i++
+	}
+}
+
+type S string
+type TitleObj2 struct {
+	Id      int64    `eorm:"序号//"`
+	Name    string   `eorm:"名称//"`
+	Numbers []S      `eorm:"第一级/第二级/第三级"`
+	Bool    string   `eorm:"第一级/反引号%60测试/空%20格"`
+	Slash   *big.Int `eorm:"第一级/双引号%22测试/反斜杠%5C"`
+	Num     Integer  `eorm:"第一级/双引号%22测试/第三级"`
+}
+
+func (t *TitleObj2) SetSlash(in int64) {
+	t.Slash = big.NewInt(in)
+}
+
+func (t *TitleObj2) Equals(o *TitleObj2) bool {
+	if t == o {
+		return true
+	}
+	if t == nil || o == nil {
+		return false
+	}
+	return t.Id == o.Id && t.Name == o.Name &&
+		tools.KS[S](t.Numbers).Equal(o.Numbers) &&
+		t.Bool == o.Bool &&
+		math.CompareBigInt(t.Slash, o.Slash) == 0 &&
+		t.Num == o.Num
+}
+
+func (t *TitleObj2) String() string {
+	if t == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("{id:%d name:%s numbers:%v bool:%s slash:%s num:%d}", t.Id, t.Name, t.Numbers, t.Bool, math.BigIntForPrint(t.Slash), t.Num)
+}
+
+func TestTitle2(t *testing.T) {
+	wb, err := NewWorkbook(filepath.Join("testdata", "title.xlsx"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = wb.Close()
+	}()
+	if wb.SheetCount() == 0 {
+		t.Fatal("eorm: sheet count is zero")
+	}
+
+	sheet, err := wb.GetSheet(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 测试创建EORM实例
+	eorm, err := NewEORM[TitleObj2](sheet, reflect.TypeOf(TitleObj2{}))
+	if err != nil {
+		t.Fatalf("NewEORM failed: %v", err)
+	}
+
+	expectings := []*TitleObj2{
+		&TitleObj2{Id: 10, Name: "name10", Numbers: []S{"16", "17"}, Bool: "TRUE", Slash: big.NewInt(14), Num: Integer(15)},
+		&TitleObj2{Id: 20, Name: "name20", Numbers: []S{"26", "27"}, Bool: "FALSE", Slash: big.NewInt(24), Num: Integer(25)},
 	}
 
 	i := 0

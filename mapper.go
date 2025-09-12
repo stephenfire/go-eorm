@@ -170,31 +170,33 @@ func (m *ColumnMapper) SetValue(rowData reflect.Value, row Row, columnIndexes []
 }
 
 func (m *ColumnMapper) getSingleValue(row Row, columnIndex int) (reflect.Value, error) {
+	singleMap := func(getter func(row Row, index int) (reflect.Value, error)) (reflect.Value, error) {
+		val, err := getter(row, columnIndex)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		if val.Type() != m.fieldType {
+			val = val.Convert(m.fieldType)
+		}
+		return val, nil
+	}
 	switch m.mappingType {
 	case MTString:
-		val, err := row.GetColumn(columnIndex)
-		if err != nil {
-			return reflect.Value{}, err
-		}
-		return reflect.ValueOf(val), nil
+		return singleMap(func(row Row, index int) (reflect.Value, error) {
+			return toValue(row.GetColumn(columnIndex))
+		})
 	case MTInt64:
-		val, err := row.GetInt64Column(columnIndex)
-		if err != nil {
-			return reflect.Value{}, err
-		}
-		return reflect.ValueOf(val), nil
+		return singleMap(func(row Row, index int) (reflect.Value, error) {
+			return toValue(row.GetInt64Column(columnIndex))
+		})
 	case MTFloat64:
-		val, err := row.GetFloat64Column(columnIndex)
-		if err != nil {
-			return reflect.Value{}, err
-		}
-		return reflect.ValueOf(val), nil
+		return singleMap(func(row Row, index int) (reflect.Value, error) {
+			return toValue(row.GetFloat64Column(columnIndex))
+		})
 	case MTBool:
-		val, err := row.GetBoolColumn(columnIndex)
-		if err != nil {
-			return reflect.Value{}, err
-		}
-		return reflect.ValueOf(val), nil
+		return singleMap(func(row Row, index int) (reflect.Value, error) {
+			return toValue(row.GetBoolColumn(columnIndex))
+		})
 	default:
 		return reflect.Value{}, fmt.Errorf("eorm: unsupported single value mapping type: %s", m.mappingType)
 	}
@@ -215,10 +217,12 @@ func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int) (reflect.Valu
 			if err != nil {
 				return reflect.Value{}, err
 			}
-			elemValue := val.Convert(m.fieldType.Elem())
-			slice.Index(i).Set(elemValue)
+			if val.Type() != m.fieldType.Elem() {
+				val = val.Convert(m.fieldType.Elem())
+			}
+			slice.Index(i).Set(val)
 		}
-		return reflect.ValueOf(slice), nil
+		return slice, nil
 	}
 
 	switch m.mappingType {
