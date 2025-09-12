@@ -331,8 +331,16 @@ func (m *TitleLayer[T]) At(index int) (TreeItem[T], bool) {
 	if ok && item != nil {
 		return item, true
 	}
-	item, ok = m.m[-1]
-	return item, ok && item != nil
+	if item, ok = m.m[-1]; ok && item != nil {
+		return item, true
+	}
+	if m.maxWidth > 0 && index >= m.maxWidth {
+		// 上一行最后一列是合并单元
+		if item, ok = m.m[m.maxWidth-1]; ok && item != nil {
+			return item, true
+		}
+	}
+	return nil, false
 }
 
 func (m *TitleLayer[T]) NextRow(row Row) (*TitleLayer[T], error) {
