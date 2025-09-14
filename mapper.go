@@ -1,6 +1,7 @@
 package eorm
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -135,17 +136,20 @@ func (m *ColumnMapper) SetValue(rowData reflect.Value, row Row, columnIndexes []
 
 	if m.mappingType.IsSlice() {
 		// 处理切片类型
-		fieldValue, err = m.getSliceValue(row, columnIndexes)
+		fieldValue, err = m.getSliceValue(row, columnIndexes, params)
 	} else {
 		// 处理单值类型
 		if len(columnIndexes) > 1 {
 			return fmt.Errorf("eorm: single value mapping type requires exactly one column, got %d", len(columnIndexes))
 		}
-		fieldValue, err = m.getSingleValue(row, columnIndexes[0])
+		fieldValue, err = m.getSingleValue(row, columnIndexes[0], params)
 	}
 
 	if err != nil {
 		return err
+	}
+	if !fieldValue.IsValid() {
+		return nil
 	}
 
 	// 设置字段值
@@ -169,10 +173,13 @@ func (m *ColumnMapper) SetValue(rowData reflect.Value, row Row, columnIndexes []
 	return nil
 }
 
-func (m *ColumnMapper) getSingleValue(row Row, columnIndex int) (reflect.Value, error) {
+func (m *ColumnMapper) getSingleValue(row Row, columnIndex int, params *Params) (reflect.Value, error) {
 	singleMap := func(getter func(row Row, index int) (reflect.Value, error)) (reflect.Value, error) {
 		val, err := getter(row, columnIndex)
 		if err != nil {
+			if params.IgnoreParseError && errors.Is(err, ErrParseError) {
+				return reflect.Value{}, nil
+			}
 			return reflect.Value{}, err
 		}
 		if val.Type() != m.fieldType {
@@ -183,6 +190,13 @@ func (m *ColumnMapper) getSingleValue(row Row, columnIndex int) (reflect.Value, 
 	switch m.mappingType {
 	case MTString:
 		return singleMap(func(row Row, index int) (reflect.Value, error) {
+			if params.TrimSpace {
+				v, err := row.GetColumn(index)
+				if err != nil {
+					return reflect.Value{}, err
+				}
+				return toValue(strings.TrimSpace(v), nil)
+			}
 			return toValue(row.GetColumn(columnIndex))
 		})
 	case MTInt64:
@@ -209,12 +223,15 @@ func toValue[T any](v T, err error) (reflect.Value, error) {
 	return reflect.ValueOf(v), nil
 }
 
-func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int) (reflect.Value, error) {
+func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int, params *Params) (reflect.Value, error) {
 	sliceMap := func(getter func(row Row, index int) (reflect.Value, error)) (reflect.Value, error) {
 		slice := reflect.MakeSlice(m.fieldType, len(columnIndexes), len(columnIndexes))
 		for i, colIdx := range columnIndexes {
 			val, err := getter(row, colIdx)
 			if err != nil {
+				if params.IgnoreParseError && errors.Is(err, ErrParseError) {
+					continue
+				}
 				return reflect.Value{}, err
 			}
 			if val.Type() != m.fieldType.Elem() {
@@ -228,6 +245,13 @@ func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int) (reflect.Valu
 	switch m.mappingType {
 	case MTStringSlice:
 		return sliceMap(func(row Row, index int) (reflect.Value, error) {
+			if params.TrimSpace {
+				v, err := row.GetColumn(index)
+				if err != nil {
+					return reflect.Value{}, err
+				}
+				return toValue(strings.TrimSpace(v), nil)
+			}
 			return toValue(row.GetColumn(index))
 		})
 	case MTInt64Slice:
@@ -266,7 +290,7 @@ func findSetterMethod(objType reflect.Type, fieldName string) (method reflect.Me
 	return reflect.Method{}, MTInvalid, nil, false
 }
 
-func NewRowMapper[T any](objType reflect.Type, sheet Sheet) (*RowMapper[T], *PathTree[int], error) {
+func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*RowMapper[T], *PathTree[int], error) {
 	if objType.Kind() != reflect.Struct {
 		return nil, nil, fmt.Errorf("eorm: objType must be a struct, got %s", objType.Kind())
 	}
@@ -357,6 +381,7 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet) (*RowMapper[T], *Pat
 
 	return &RowMapper[T]{
 		typ:     objType,
+		params:  params,
 		fields:  fieldsMapper,
 		columns: fieldToColumns,
 	}, pTree, nil

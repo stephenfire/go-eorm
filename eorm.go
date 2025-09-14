@@ -38,7 +38,7 @@ func NewEORM[T any](sheet Sheet, objType reflect.Type, opts ...Option) (*EORM[T]
 	}
 
 	// 分析对象类型，创建ColumnMapper
-	rowMapper, columnTree, err := NewRowMapper[T](objType, sheet)
+	rowMapper, columnTree, err := NewRowMapper[T](objType, sheet, params)
 	if err != nil {
 		return nil, err
 	}

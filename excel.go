@@ -48,6 +48,7 @@ var (
 	ErrInvalidCellValue    = errors.New("excel: invalid cell value")
 	ErrExcelNotInitialized = errors.New("excel: not initialized")
 	ErrEof                 = errors.New("excel: eof")
+	ErrParseError          = errors.New("cell value parse error")
 )
 
 func NewWorkbook(filePath string) (Workbook, error) {

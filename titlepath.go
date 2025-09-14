@@ -308,6 +308,8 @@ func (p *PathTree[T]) Put(val T, path TitlePath) error {
 	return nil
 }
 
+const rootIdx = -1
+
 // TitleLayer 从 PathTree 的根开始，带有传承的记录每一级根据列内容匹配的列和对应的节点
 // 当 key == -1 时，表示所有列都匹配的节点。初始化时的值为 {-1: root}
 type TitleLayer[T any] struct {
@@ -317,7 +319,7 @@ type TitleLayer[T any] struct {
 
 func NewTitleLayer[T any](root TreeItem[T]) *TitleLayer[T] {
 	return &TitleLayer[T]{
-		m:        map[int]TreeItem[T]{-1: root},
+		m:        map[int]TreeItem[T]{rootIdx: root},
 		maxWidth: 0,
 	}
 }
@@ -326,12 +328,20 @@ func (m *TitleLayer[T]) Size() int {
 	return len(m.m)
 }
 
+func (m *TitleLayer[T]) IsRoot() bool {
+	if m == nil || m.m == nil {
+		return false
+	}
+	_, ok := m.m[rootIdx]
+	return ok
+}
+
 func (m *TitleLayer[T]) At(index int) (TreeItem[T], bool) {
 	item, ok := m.m[index]
 	if ok && item != nil {
 		return item, true
 	}
-	if item, ok = m.m[-1]; ok && item != nil {
+	if item, ok = m.m[rootIdx]; ok && item != nil {
 		return item, true
 	}
 	if m.maxWidth > 0 && index >= m.maxWidth {
@@ -346,15 +356,25 @@ func (m *TitleLayer[T]) At(index int) (TreeItem[T], bool) {
 func (m *TitleLayer[T]) NextRow(row Row) (*TitleLayer[T], error) {
 	lastVal := ""
 	var next tools.KMap[int, TreeItem[T]]
-	putNext := func(idx int) {
+	putNext := func(idx int, v string) bool {
 		item, ok := m.At(idx)
 		if !ok {
-			return
+			return false
 		}
-		child := item.GetChild(lastVal)
+		child := item.GetChild(v)
 		if child != nil {
 			next = next.Put(idx, child)
+			return true
 		}
+		if m.IsRoot() {
+			// 如果是第一行，检查是否存在空path，如果存在，认为匹配
+			child = item.GetChild("")
+			if child != nil {
+				next = next.Put(idx, child)
+				return true
+			}
+		}
+		return false
 	}
 	colCount := row.ColumnCount()
 	for i := 0; i < colCount; i++ {
@@ -364,14 +384,18 @@ func (m *TitleLayer[T]) NextRow(row Row) (*TitleLayer[T], error) {
 			return nil, fmt.Errorf("eorm: get column %d: %w", i, err)
 		}
 		if val == "" {
-			val = lastVal
+			if !putNext(i, lastVal) {
+				putNext(i, val)
+			}
 		} else {
 			lastVal = val
+			putNext(i, val)
 		}
-		putNext(i)
 	}
 	for i := colCount; i < m.maxWidth; i++ {
-		putNext(i)
+		if !putNext(i, lastVal) {
+			putNext(i, "")
+		}
 	}
 	return &TitleLayer[T]{m: next, maxWidth: max(colCount, m.maxWidth)}, nil
 }

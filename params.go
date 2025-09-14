@@ -5,7 +5,16 @@ type (
 		TrimSpace          bool // 是否删除首尾空格，缺省不删除
 		NoOutOfRange       bool // 越界时设为0值，而不报错
 		IgnoreReadRowError bool // 迭代sheet的row时，如果出错是否跳过
+		IgnoreParseError   bool // 遇到 ErrParseError 时当作无值处理
 	}
 
 	Option func(p *Params)
 )
+
+func WithTrimSpace() Option {
+	return func(p *Params) { p.TrimSpace = true }
+}
+
+func WithIgnoreParseError() Option {
+	return func(p *Params) { p.IgnoreParseError = true }
+}

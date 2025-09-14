@@ -69,16 +69,20 @@ func (x XlsCell) ToFloat64(data structure.CellData) (float64, error) {
 		return 0, ErrInvalidValueType
 	case XlsCellFake:
 		return 0, ErrNotFound
-	case XlsCellString:
-		f, err := strconv.ParseFloat(data.GetString(), 64)
+	case XlsCellString, XlsCellFloat, XlsCellInt:
+		s := strings.TrimSpace(data.GetString())
+		if s == "" {
+			return 0, nil
+		}
+		f, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return 0, fmt.Errorf("excel/xls: parse string to float64 failed: %w", err)
+			return 0, fmt.Errorf("excel/xls: string to float64 %w: %w", ErrParseError, err)
 		}
 		return f, nil
-	case XlsCellFloat:
-		return data.GetFloat64(), nil
-	case XlsCellInt:
-		return float64(data.GetInt64()), nil
+	// case XlsCellFloat:
+	// 	return data.GetFloat64(), nil
+	// case XlsCellInt:
+	// 	return float64(data.GetInt64()), nil
 	case XlsCellNil:
 		return 0, ErrNil
 	default:
@@ -94,16 +98,20 @@ func (x XlsCell) ToInt64(data structure.CellData) (int64, error) {
 		return 0, ErrInvalidValueType
 	case XlsCellFake:
 		return 0, ErrNotFound
-	case XlsCellString:
-		i, err := strconv.ParseInt(data.GetString(), 10, 64)
+	case XlsCellString, XlsCellFloat, XlsCellInt:
+		s := strings.TrimSpace(data.GetString())
+		if s == "" {
+			return 0, nil
+		}
+		i, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("excel/xls: parse string to int64 failed: %w", err)
+			return 0, fmt.Errorf("excel/xls: string to int64 %w: %w", ErrParseError, err)
 		}
 		return i, nil
-	case XlsCellFloat:
-		return 0, ErrInvalidValueType
-	case XlsCellInt:
-		return data.GetInt64(), nil
+	// case XlsCellFloat:
+	// 	return 0, ErrInvalidValueType
+	// case XlsCellInt:
+	// 	return data.GetInt64(), nil
 	case XlsCellNil:
 		return 0, ErrNil
 	default:
@@ -115,7 +123,7 @@ func (x XlsCell) ToBool(data structure.CellData) (bool, error) {
 	switch x.Type(data) {
 	case XlsCellBlank:
 		return false, nil
-	case XlsCellBoolOrErr:
+	case XlsCellBoolOrErr, XlsCellString:
 		s := strings.ToUpper(data.GetString())
 		switch s {
 		case "TRUE":
@@ -123,12 +131,12 @@ func (x XlsCell) ToBool(data structure.CellData) (bool, error) {
 		case "FALSE":
 			return false, nil
 		default:
-			return false, ErrInvalidCellValue
+			return false, fmt.Errorf("excel/xls: string to bool %w", ErrParseError)
 		}
 	case XlsCellFake:
 		return false, ErrNotFound
-	case XlsCellString:
-		return false, ErrInvalidValueType
+	// case XlsCellString:
+	// 	return false, ErrInvalidValueType
 	case XlsCellFloat:
 		return false, ErrInvalidValueType
 	case XlsCellInt:

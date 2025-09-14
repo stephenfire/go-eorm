@@ -96,9 +96,9 @@ func (x xlsxRow) GetInt64Column(index int) (int64, error) {
 		return 0, err
 	}
 
-	i, err := strconv.ParseInt(v, 10, 64)
+	i, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("excel/xlsx: parse string to int64 failed: %w", err)
+		return 0, fmt.Errorf("excel/xlsx: string to int64 %w: %w", ErrParseError, err)
 	}
 	return i, nil
 }
@@ -109,9 +109,9 @@ func (x xlsxRow) GetFloat64Column(index int) (float64, error) {
 		return 0, err
 	}
 
-	f, err := strconv.ParseFloat(v, 64)
+	f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
 	if err != nil {
-		return 0, fmt.Errorf("excel/xlsx: parse string to float64 failed: %w", err)
+		return 0, fmt.Errorf("excel/xlsx: string to float64 %w: %w", ErrParseError, err)
 	}
 	return f, nil
 }
@@ -129,7 +129,7 @@ func (x xlsxRow) GetBoolColumn(index int) (bool, error) {
 	case "FALSE":
 		return false, nil
 	default:
-		return false, fmt.Errorf("excel/xlsx: parse string to bool failed: unknown value: %s", v)
+		return false, fmt.Errorf("excel/xlsx: string to bool %w: unknown value: %s", ErrParseError, v)
 	}
 }
 
