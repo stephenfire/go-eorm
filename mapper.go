@@ -177,12 +177,15 @@ func (m *ColumnMapper) getSingleValue(row Row, columnIndex int, params *Params) 
 	singleMap := func(getter func(row Row, index int) (reflect.Value, error)) (reflect.Value, error) {
 		val, err := getter(row, columnIndex)
 		if err != nil {
-			if params.IgnoreParseError && errors.Is(err, ErrParseError) {
-				return reflect.Value{}, nil
+			if (params.IgnoreParseError && errors.Is(err, ErrParseError)) ||
+				(params.IgnoreOutOfRange && errors.Is(err, ErrOutOfRange)) {
+				return reflect.Zero(m.fieldType), nil
 			}
 			return reflect.Value{}, err
 		}
-		if val.Type() != m.fieldType {
+		if !val.IsValid() {
+			val = reflect.Zero(m.fieldType)
+		} else if val.Type() != m.fieldType {
 			val = val.Convert(m.fieldType)
 		}
 		return val, nil
@@ -229,12 +232,16 @@ func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int, params *Param
 		for i, colIdx := range columnIndexes {
 			val, err := getter(row, colIdx)
 			if err != nil {
-				if params.IgnoreParseError && errors.Is(err, ErrParseError) {
-					continue
+				if (params.IgnoreParseError && errors.Is(err, ErrParseError)) ||
+					(params.IgnoreOutOfRange && errors.Is(err, ErrOutOfRange)) {
+					val = reflect.Zero(m.fieldType)
+				} else {
+					return reflect.Value{}, err
 				}
-				return reflect.Value{}, err
 			}
-			if val.Type() != m.fieldType.Elem() {
+			if !val.IsValid() {
+				val = reflect.Zero(m.fieldType)
+			} else if val.Type() != m.fieldType.Elem() {
 				val = val.Convert(m.fieldType.Elem())
 			}
 			slice.Index(i).Set(val)

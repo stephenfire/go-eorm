@@ -4,10 +4,14 @@ go 1.24
 
 require (
 	github.com/shakinm/xlsReader v0.9.12
+	github.com/stephenfire/go-common v1.0.1
+	github.com/stephenfire/go-tools v0.1.0
+	github.com/urfave/cli/v2 v2.27.7
 	github.com/xuri/excelize/v2 v2.9.1
 )
 
 require (
+	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible // indirect
@@ -16,11 +20,11 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/stephenfire/go-common v1.0.0 // indirect
 	github.com/stephenfire/go-rtl v1.1.1 // indirect
-	github.com/stephenfire/go-tools v0.0.6 // indirect
 	github.com/tiendc/go-deepcopy v1.6.0 // indirect
+	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	github.com/xuri/efp v0.0.1 // indirect
 	github.com/xuri/nfp v0.0.1 // indirect
 	golang.org/x/crypto v0.38.0 // indirect

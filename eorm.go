@@ -4,6 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+
+	"github.com/stephenfire/go-common"
+)
+
+const (
+	Version   = common.Version(1000)
+	Copyright = "Copyright 2025 stephen.fire@gmail.com"
 )
 
 var (
@@ -31,11 +38,7 @@ func NewEORM[T any](sheet Sheet, objType reflect.Type, opts ...Option) (*EORM[T]
 		return nil, fmt.Errorf("eorm: objType must be a struct, got %s", objType.Kind())
 	}
 
-	// 处理选项参数
-	params := &Params{}
-	for _, opt := range opts {
-		opt(params)
-	}
+	params := NewParams(opts...)
 
 	// 分析对象类型，创建ColumnMapper
 	rowMapper, columnTree, err := NewRowMapper[T](objType, sheet, params)

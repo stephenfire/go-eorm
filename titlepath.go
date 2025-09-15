@@ -159,6 +159,31 @@ func (tp TitlePath) String() string {
 	return tp.Encode()
 }
 
+func (tp TitlePath) Clone() TitlePath {
+	if tp == nil {
+		return nil
+	}
+	op := make(TitlePath, len(tp))
+	copy(op, tp)
+	return op
+}
+
+func (tp TitlePath) Last() string {
+	if len(tp) == 0 {
+		return ""
+	}
+	return tp[len(tp)-1]
+}
+
+func (tp TitlePath) Truncate(n int) TitlePath {
+	if len(tp) <= n {
+		return nil
+	}
+	op := make(TitlePath, len(tp)-n)
+	copy(op, tp[:len(tp)-n])
+	return op
+}
+
 func MustTitlePath(path string) TitlePath {
 	tp, err := TitlePath(nil).Decode(path)
 	if err != nil {
@@ -383,6 +408,7 @@ func (m *TitleLayer[T]) NextRow(row Row) (*TitleLayer[T], error) {
 		if err != nil {
 			return nil, fmt.Errorf("eorm: get column %d: %w", i, err)
 		}
+		val = strings.TrimSpace(val)
 		if val == "" {
 			if !putNext(i, lastVal) {
 				putNext(i, val)
