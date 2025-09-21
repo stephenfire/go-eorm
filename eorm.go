@@ -3,6 +3,7 @@ package eorm
 import (
 	"errors"
 	"fmt"
+	"iter"
 	"reflect"
 
 	"github.com/stephenfire/go-common"
@@ -33,7 +34,7 @@ type EORM[T any] struct {
 }
 
 func NewEORM[T any](sheet Sheet, objType reflect.Type, opts ...Option) (*EORM[T], error) {
-	// 首先检查objType是否为结构体
+	// 检查objType是否为结构体
 	if objType.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("eorm: objType must be a struct, got %s", objType.Kind())
 	}
@@ -138,4 +139,15 @@ func (e *EORM[T]) Current() (*T, error) {
 	}
 	e.currentObj = obj
 	return e.currentObj, nil
+}
+
+func (e *EORM[T]) All() iter.Seq2[*T, error] {
+	return func(yield func(*T, error) bool) {
+		for e.Next() {
+			t, err := e.Current()
+			if !yield(t, err) {
+				return
+			}
+		}
+	}
 }
