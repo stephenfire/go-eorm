@@ -2,6 +2,7 @@ package eorm
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -275,4 +276,12 @@ func NewXlsWorkbook(filePath string) (Workbook, error) {
 		return nil, fmt.Errorf("excel/xls: %w", err)
 	}
 	return &xlsWorkbook{workbook: workbook}, nil
+}
+
+func NewXlsWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
+	wb, err := xls.OpenReader(reader)
+	if err != nil {
+		return nil, fmt.Errorf("excel/xls: %w", err)
+	}
+	return &xlsWorkbook{workbook: wb}, nil
 }

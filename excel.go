@@ -3,6 +3,7 @@ package eorm
 import (
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 )
@@ -61,6 +62,24 @@ func NewWorkbook(filePath string) (Workbook, error) {
 		wb, err = NewXlsxWorkbook(filePath)
 	case ".xls":
 		wb, err = NewXlsWorkbook(filePath)
+	default:
+		return nil, fmt.Errorf("eorm: unsupported file format: %s", ext)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("eorm: failed to open workbook: %w", err)
+	}
+	return wb, nil
+}
+
+func NewWorkbookByReadSeeker(filename string, reader io.ReadSeeker) (Workbook, error) {
+	var wb Workbook
+	var err error
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".xlsx":
+		wb, err = NewXlsxWorkbookByReadSeeker(reader)
+	case ".xls":
+		wb, err = NewXlsWorkbookByReadSeeker(reader)
 	default:
 		return nil, fmt.Errorf("eorm: unsupported file format: %s", ext)
 	}

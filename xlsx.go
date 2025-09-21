@@ -2,6 +2,7 @@ package eorm
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -27,6 +28,15 @@ type (
 
 func NewXlsxWorkbook(filePath string) (Workbook, error) {
 	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("excel/xlsx: %w", err)
+	}
+	names := f.GetSheetList()
+	return &xlsxWorkbook{names: names, f: f}, nil
+}
+
+func NewXlsxWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
+	f, err := excelize.OpenReader(reader)
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
