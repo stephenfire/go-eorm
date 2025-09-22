@@ -33,6 +33,10 @@ func WithIgnoreParseError() Option {
 	return func(p *Params) { p.IgnoreParseError = true }
 }
 
+func WithIgnoreReadRowError() Option {
+	return func(p *Params) { p.IgnoreReadRowError = true }
+}
+
 func WithGenWildcardForFirstLayer() Option {
 	return func(p *Params) { p.GenWildcardForFirstLayer = true }
 }
