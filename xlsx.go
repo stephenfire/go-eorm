@@ -3,6 +3,7 @@ package eorm
 import (
 	"fmt"
 	"io"
+	"iter"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,7 @@ type (
 	}
 
 	xlsxSheet struct {
+		name    string
 		allRows [][]string
 	}
 
@@ -56,7 +58,7 @@ func (x *xlsxWorkbook) GetSheet(index int) (Sheet, error) {
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
-	return &xlsxSheet{allRows: rows}, nil
+	return &xlsxSheet{name: x.names[index], allRows: rows}, nil
 }
 
 func (x *xlsxWorkbook) IterateSheet(index int) (RowIterator, error) {
@@ -76,6 +78,10 @@ func (x *xlsxWorkbook) Close() error {
 		return fmt.Errorf("excel/xlsx: %w", err)
 	}
 	return nil
+}
+
+func (x xlsxSheet) GetName() string {
+	return x.name
 }
 
 func (x xlsxSheet) RowCount() int {
@@ -140,6 +146,16 @@ func (x xlsxRow) GetBoolColumn(index int) (bool, error) {
 		return false, nil
 	default:
 		return false, fmt.Errorf("excel/xlsx: string to bool %w: unknown value: %s", ErrParseError, v)
+	}
+}
+
+func (x xlsxRow) AllColumns() iter.Seq2[int, string] {
+	return func(yield func(int, string) bool) {
+		for i, s := range x {
+			if !yield(i, s) {
+				return
+			}
+		}
 	}
 }
 

@@ -3,6 +3,7 @@ package eorm
 import (
 	"fmt"
 	"io"
+	"iter"
 	"strconv"
 	"strings"
 
@@ -203,6 +204,20 @@ func (x *xlsRow) GetBoolColumn(index int) (bool, error) {
 		return false, ErrOutOfRange
 	}
 	return XlsCell{}.ToBool(x.cols[index])
+}
+
+func (x *xlsRow) AllColumns() iter.Seq2[int, string] {
+	return func(yield func(int, string) bool) {
+		for i := 0; i < len(x.cols); i++ {
+			if !yield(i, x.cols[i].GetString()) {
+				return
+			}
+		}
+	}
+}
+
+func (x *xlsSheet) GetName() string {
+	return x.sheet.GetName()
 }
 
 func (x *xlsSheet) RowCount() int {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"path/filepath"
 	"strings"
 )
@@ -15,9 +16,11 @@ type (
 		GetInt64Column(index int) (int64, error)
 		GetFloat64Column(index int) (float64, error)
 		GetBoolColumn(index int) (bool, error)
+		AllColumns() iter.Seq2[int, string]
 	}
 
 	Sheet interface {
+		GetName() string
 		RowCount() int
 		GetRow(index int) (Row, error)
 	}
