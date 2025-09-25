@@ -14,7 +14,7 @@ import (
 
 func shouldEscape(c byte) bool {
 	switch c {
-	case '%', '\'', '"', '/', '\\', '\n', '\r', '\t', '`', ' ':
+	case '%', '\'', ',', '"', '/', '\\', '\n', '\r', '\t', '`', ' ':
 		return true
 	}
 	return false
@@ -405,7 +405,7 @@ func (m *TitleLayer[T]) NextRow(row Row) (*TitleLayer[T], error) {
 	for i := 0; i < colCount; i++ {
 		// 为了在内容为空时使用前面的值填充，所以按顺序读取所有列，一一进行匹配
 		val, err := row.GetColumn(i)
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrEmptyCell) {
 			return nil, fmt.Errorf("eorm: get column %d: %w", i, err)
 		}
 		val = strings.TrimSpace(val)

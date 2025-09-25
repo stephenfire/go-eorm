@@ -48,7 +48,7 @@ func BuildTitlePaths(sheet Sheet, depth int, opts ...Option) (TitlePaths, error)
 			var val string
 			if i != 0 || !params.GenWildcardForFirstLayer {
 				val, err = row.GetColumn(j)
-				if err != nil {
+				if err != nil && !errors.Is(err, ErrEmptyCell) {
 					return nil, fmt.Errorf("eorm: get column %d: %w", j, err)
 				}
 				if params.TrimSpace {

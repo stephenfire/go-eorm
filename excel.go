@@ -47,6 +47,7 @@ var (
 	ErrNotFound         = errors.New("excel: not found")
 	ErrOutOfRange       = errors.New("excel: out of range")
 	ErrNil              = errors.New("excel: nil")
+	ErrEmptyCell        = errors.New("excel: empty cell")
 	ErrInvalidValueType = errors.New("excel: invalid value type")
 	// ErrInvalidCellValue #NULL!, #DIV/0!, #VALUE!, #REF!, #NAME?, #NUM!!, #N/A
 	ErrInvalidCellValue    = errors.New("excel: invalid cell value")

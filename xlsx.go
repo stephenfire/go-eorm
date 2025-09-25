@@ -111,6 +111,9 @@ func (x xlsxRow) GetInt64Column(index int) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if v == "" {
+		return 0, ErrEmptyCell
+	}
 
 	i, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
 	if err != nil {
@@ -124,6 +127,9 @@ func (x xlsxRow) GetFloat64Column(index int) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if v == "" {
+		return 0, ErrEmptyCell
+	}
 
 	f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
 	if err != nil {
@@ -136,6 +142,9 @@ func (x xlsxRow) GetBoolColumn(index int) (bool, error) {
 	v, err := x.GetColumn(index)
 	if err != nil {
 		return false, err
+	}
+	if v == "" {
+		return false, ErrEmptyCell
 	}
 
 	v = strings.ToUpper(v)

@@ -30,7 +30,15 @@
 * 在**表头**中，遇到空的单元格，被认定为“被横向合并”的单元格，使用同一行前一列的值填充。
 * 在**表体**中，遇到空的单元格，则直接返回空。
 
-### title_path
+### TAG
+
+使用name为`eorm`的tag给struct属性绑定列映射，包括`title_path`和`constraint`，格式为
+
+```go
+`eorm:"title_path[,constraint]"`
+```
+
+#### title_path
 
 * 分隔符：`/`。每一个`/`，就代表表头多一层（也就是excel中的一行）。
 * 一个`title_path`是由多级`title`间隔`/`Join出的字符串。
@@ -55,9 +63,22 @@
 | F | 第一级/双引号%22测试/第三级    |
 | G | 第一级/没有第三级/          |
 
-#### 数组映射
+##### 数组映射
 
 由于表头内容有可能出现重复，或由于`title_path`中出现*通配*，此时一个`title_path`可能出现对应多列的情况，值不唯一。
+
+#### constraint
+
+没有`constraint`值是缺省情况，此时类型字段(field)与表列(column)的绑定关系不是必须的，极端情况下，允许所有field都没有与任何column绑定。
+
+##### required
+
+表示当前field所绑定的`title_path`必须存在。如果不存在，则认为表格与对象类型不匹配。可以用来检查类型与表格是否匹配。
+
+##### not_null
+
+* 首先，`not_null`具有`required`的特性，
+* 同时，在进行值映射时，当前field对应的column必须有值（非空单元格）
 
 ### ORM
 
@@ -83,29 +104,3 @@
 
 通过为类型增加签名为 $Set$_AttributeName_`(ss []~string|[]~int64|[]~float64|[]~bool)` 的方法定义数组`setter`
 方法，其中_AttributeName_为类型属性名，参数类型为`~string|~int64|~float64|~bool`的切片
-
-### 映射方法
-
-RowMapper[T]对象的主要功能是把Row转换为一个类型为*T的对象。其中：
-
-* RowMapper.typ属性是T类型的reflect.Type。
-* RowMapper.fields保存所有类型T中所有需要映射的属性和信息ColumnMapper
-* RowMapper.columns保存T中每一个需要映射的属性值需要由Row中哪些列的值构成。
-
-ColumnMapper中保存了属性值的构成方法，分为两种：
-
-* 当ColumnMapper.HasSetter==false时，直接赋值给属性值
-* 当ColumnMapper.HasSetter==true时，通过ColumnMapper.Setter保存的*T的方法设置属性值。
-
-无论是哪种方式，值的类型都保存在ColumnMapper.fieldType中，而值类型的Kind()只能是string, int64, float64, bool, []string, []
-int64, []float64, []bool之一。
-
-转换方法为RowMapper.Transit(row Row) (*T, error)方法，其步骤为：
-
-1. 遍历由对象属性fieldIndex到Row中列columnIndexes的映射表RowMapper.columns，当映射到多列时，也就是len(columnIndexes)>
-   1，值类型必须是[]string, []int64, []float64, []bool之一。
-2. 遍历columnIndexes，从row中获取各列对应的值，并转换为ColumnMapper.fieldType的类型，得到fieldValue
-3. 创建RowMapper.typ类型对应的指针对象rowData
-4. 当ColumnMapper.HasSetter==false时，将fieldValue直接赋值给rowData对应index为fieldIndex的属性
-5. 当ColumnMapper.HasSetter==true时，将fieldValue传递给rowData对象对应的ColumnMapper.Setter方法，完成值设置。
-6. 返回新创建的rowData

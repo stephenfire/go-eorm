@@ -60,13 +60,14 @@ func (x XlsCell) ToString(data structure.CellData) (string, error) {
 	if data == nil {
 		return "", ErrNil
 	}
-	return data.GetString(), nil
+	s := data.GetString()
+	return s, nil
 }
 
 func (x XlsCell) ToFloat64(data structure.CellData) (float64, error) {
 	switch x.Type(data) {
 	case XlsCellBlank:
-		return 0, nil
+		return 0, ErrEmptyCell
 	case XlsCellBoolOrErr:
 		return 0, ErrInvalidValueType
 	case XlsCellFake:
@@ -95,7 +96,7 @@ func (x XlsCell) ToFloat64(data structure.CellData) (float64, error) {
 func (x XlsCell) ToInt64(data structure.CellData) (int64, error) {
 	switch x.Type(data) {
 	case XlsCellBlank:
-		return 0, nil
+		return 0, ErrEmptyCell
 	case XlsCellBoolOrErr:
 		return 0, ErrInvalidValueType
 	case XlsCellFake:
@@ -124,7 +125,7 @@ func (x XlsCell) ToInt64(data structure.CellData) (int64, error) {
 func (x XlsCell) ToBool(data structure.CellData) (bool, error) {
 	switch x.Type(data) {
 	case XlsCellBlank:
-		return false, nil
+		return false, ErrEmptyCell
 	case XlsCellBoolOrErr, XlsCellString:
 		s := strings.ToUpper(data.GetString())
 		switch s {

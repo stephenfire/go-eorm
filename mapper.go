@@ -10,6 +10,7 @@ import (
 
 type (
 	MappingType byte
+	Constraint  string
 
 	ColumnMapper struct {
 		fieldIndex  int            // direct field index
@@ -17,10 +18,34 @@ type (
 		fieldType   reflect.Type   // type of the field or the setter parameter type if HasSetter is true
 		fieldName   string         // field of struct
 		titlePath   TitlePath      // eorm tag 的值，以'/'分割
+		constraint  Constraint     // "" or required or not_null
 		Setter      reflect.Method // 对应的 Set 方法
 		HasSetter   bool           // 是否存在对应的 Set 方法
 	}
 
+	// RowMapper RowMapper[T]对象的主要功能是把Row转换为一个类型为*T的对象。其中：
+	//
+	// * RowMapper.typ属性是T类型的reflect.Type。
+	// * RowMapper.fields保存所有类型T中所有需要映射的属性和信息ColumnMapper
+	// * RowMapper.columns保存T中每一个需要映射的属性值需要由Row中哪些列的值构成。
+	//
+	// ColumnMapper中保存了属性值的构成方法，分为两种：
+	//
+	// * 当ColumnMapper.HasSetter==false时，直接赋值给属性值
+	// * 当ColumnMapper.HasSetter==true时，通过ColumnMapper.Setter保存的*T的方法设置属性值。
+	//
+	// 无论是哪种方式，值的类型都保存在ColumnMapper.fieldType中，而值类型的Kind()只能是string, int64, float64, bool, []string, []
+	// int64, []float64, []bool之一。
+	//
+	// 转换方法为RowMapper.Transit(row Row) (*T, error)方法，其步骤为：
+	//
+	// 1. 遍历由对象属性fieldIndex到Row中列columnIndexes的映射表RowMapper.columns，当映射到多列时，也就是len(columnIndexes)>
+	//   1，值类型必须是[]string, []int64, []float64, []bool之一。
+	// 2. 遍历columnIndexes，从row中获取各列对应的值，并转换为ColumnMapper.fieldType的类型，得到fieldValue
+	// 3. 创建RowMapper.typ类型对应的指针对象rowData
+	// 4. 当ColumnMapper.HasSetter==false时，将fieldValue直接赋值给rowData对应index为fieldIndex的属性
+	// 5. 当ColumnMapper.HasSetter==true时，将fieldValue传递给rowData对象对应的ColumnMapper.Setter方法，完成值设置。
+	// 6. 返回新创建的rowData
 	RowMapper[T any] struct {
 		typ    reflect.Type
 		params *Params
@@ -41,6 +66,12 @@ const (
 	MTFloat64Slice
 	MTBoolSlice
 	MTInvalid
+)
+
+const (
+	ConstraintDefault  = ""
+	ConstraintRequired = "required"
+	ConstraintNotNull  = "not_null"
 )
 
 func NewMappingType(typ reflect.Type) (MappingType, error) {
@@ -107,6 +138,18 @@ func (mt MappingType) String() string {
 	}
 }
 
+func (c Constraint) IsValid() bool {
+	return c == ConstraintDefault || c == ConstraintRequired || c == ConstraintNotNull
+}
+
+func (c Constraint) NeedMapper() bool {
+	return c == ConstraintRequired || c == ConstraintNotNull
+}
+
+func (c Constraint) NeedValue() bool {
+	return c == ConstraintNotNull
+}
+
 func (m *ColumnMapper) String() string {
 	sb := strings.Builder{}
 	sb.WriteString(fmt.Sprintf("[%d]", m.fieldIndex))
@@ -124,7 +167,7 @@ func (m *ColumnMapper) SetValue(rowData reflect.Value, row Row, columnIndexes []
 		return fmt.Errorf("eorm: invalid mapping type of column mapper %s", m.String())
 	}
 	if row == nil {
-		return fmt.Errorf("eorm: row is nil")
+		return errors.New("eorm: row is nil")
 	}
 	if len(columnIndexes) == 0 {
 		return nil
@@ -198,30 +241,34 @@ func (m *ColumnMapper) getSingleValue(row Row, columnIndex int, params *Params) 
 				if err != nil {
 					return reflect.Value{}, err
 				}
-				return toValue(strings.TrimSpace(v), nil)
+				return reflect.ValueOf(strings.TrimSpace(v)), nil
 			}
-			return toValue(row.GetColumn(columnIndex))
+			return colToValue(row.GetColumn, columnIndex, m.constraint)
 		})
 	case MTInt64:
 		return singleMap(func(row Row, index int) (reflect.Value, error) {
-			return toValue(row.GetInt64Column(columnIndex))
+			return colToValue(row.GetInt64Column, columnIndex, m.constraint)
 		})
 	case MTFloat64:
 		return singleMap(func(row Row, index int) (reflect.Value, error) {
-			return toValue(row.GetFloat64Column(columnIndex))
+			return colToValue(row.GetFloat64Column, columnIndex, m.constraint)
 		})
 	case MTBool:
 		return singleMap(func(row Row, index int) (reflect.Value, error) {
-			return toValue(row.GetBoolColumn(columnIndex))
+			return colToValue(row.GetBoolColumn, columnIndex, m.constraint)
 		})
 	default:
 		return reflect.Value{}, fmt.Errorf("eorm: unsupported single value mapping type: %s", m.mappingType)
 	}
 }
 
-func toValue[T any](v T, err error) (reflect.Value, error) {
-	if err != nil {
-		return reflect.Value{}, err
+func colToValue[T any](fn func(index int) (T, error), index int, constraint Constraint) (reflect.Value, error) {
+	v, e := fn(index)
+	if e != nil {
+		if !constraint.NeedValue() && errors.Is(e, ErrEmptyCell) {
+			return reflect.ValueOf(v), nil
+		}
+		return reflect.Value{}, e
 	}
 	return reflect.ValueOf(v), nil
 }
@@ -257,21 +304,21 @@ func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int, params *Param
 				if err != nil {
 					return reflect.Value{}, err
 				}
-				return toValue(strings.TrimSpace(v), nil)
+				return reflect.ValueOf(strings.TrimSpace(v)), nil
 			}
-			return toValue(row.GetColumn(index))
+			return colToValue(row.GetColumn, index, m.constraint)
 		})
 	case MTInt64Slice:
 		return sliceMap(func(row Row, index int) (reflect.Value, error) {
-			return toValue(row.GetInt64Column(index))
+			return colToValue(row.GetInt64Column, index, m.constraint)
 		})
 	case MTFloat64Slice:
 		return sliceMap(func(row Row, index int) (reflect.Value, error) {
-			return toValue(row.GetFloat64Column(index))
+			return colToValue(row.GetFloat64Column, index, m.constraint)
 		})
 	case MTBoolSlice:
 		return sliceMap(func(row Row, index int) (reflect.Value, error) {
-			return toValue(row.GetBoolColumn(index))
+			return colToValue(row.GetBoolColumn, index, m.constraint)
 		})
 	default:
 		return reflect.Value{}, fmt.Errorf("eorm: unsupported slice mapping type: %s", m.mappingType)
@@ -314,8 +361,19 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 			continue
 		}
 
+		titlepathTag := eormTag
+		constraint := ""
+		parts := strings.SplitN(eormTag, ",", 2)
+		if len(parts) > 1 {
+			titlepathTag = parts[0]
+			constraint = parts[1]
+			if !Constraint(constraint).IsValid() {
+				constraint = ""
+			}
+		}
+
 		// 解析title path
-		titlePath, err := TitlePath(nil).Decode(eormTag)
+		titlePath, err := TitlePath(nil).Decode(titlepathTag)
 		if err != nil {
 			return nil, nil, fmt.Errorf("eorm: failed to decode title path for field %s: %w", field.Name, err)
 		}
@@ -345,6 +403,7 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 			mappingType: mtType,
 			fieldName:   field.Name,
 			titlePath:   titlePath,
+			constraint:  Constraint(constraint),
 			Setter:      setterMethod,
 			HasSetter:   hasSetter,
 		}
@@ -384,6 +443,15 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 		}
 
 		sort.Ints(columnIndexes)
+	}
+	// 4. 检查constraint required是否满足
+	for fieldIndex, columnMapper := range fieldsMapper {
+		if columnMapper.constraint.NeedMapper() {
+			columnIndexes := fieldToColumns[fieldIndex]
+			if len(columnIndexes) == 0 {
+				return nil, nil, fmt.Errorf("eorm: no column found for required field index %d", fieldIndex)
+			}
+		}
 	}
 
 	return &RowMapper[T]{
