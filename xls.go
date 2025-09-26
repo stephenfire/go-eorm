@@ -167,6 +167,7 @@ type (
 	}
 
 	xlsWorkbook struct {
+		nameMap  map[string]int // name -> index
 		workbook xls.Workbook
 	}
 
@@ -270,6 +271,14 @@ func (x *xlsWorkbook) getSheet(index int) (*xlsSheet, error) {
 	return &xlsSheet{sheet: sheet, rowCount: rowCount}, nil
 }
 
+func (x *xlsWorkbook) GetSheetByName(name string) (Sheet, error) {
+	idx, exist := x.nameMap[name]
+	if !exist {
+		return nil, ErrNotFound
+	}
+	return x.getSheet(idx)
+}
+
 func (x *xlsWorkbook) GetSheet(index int) (Sheet, error) {
 	return x.getSheet(index)
 }
@@ -286,12 +295,21 @@ func (x *xlsWorkbook) Close() error {
 	return nil
 }
 
+func newWorkbook(wb xls.Workbook) *xlsWorkbook {
+	nameMap := make(map[string]int)
+	sheets := wb.GetSheets()
+	for i, sheet := range sheets {
+		nameMap[sheet.GetName()] = i
+	}
+	return &xlsWorkbook{workbook: wb, nameMap: nameMap}
+}
+
 func NewXlsWorkbook(filePath string) (Workbook, error) {
 	workbook, err := xls.OpenFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("excel/xls: %w", err)
 	}
-	return &xlsWorkbook{workbook: workbook}, nil
+	return newWorkbook(workbook), nil
 }
 
 func NewXlsWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
@@ -299,5 +317,5 @@ func NewXlsWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
 	if err != nil {
 		return nil, fmt.Errorf("excel/xls: %w", err)
 	}
-	return &xlsWorkbook{workbook: wb}, nil
+	return newWorkbook(wb), nil
 }

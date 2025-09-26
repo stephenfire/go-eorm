@@ -28,6 +28,7 @@ type (
 	Workbook interface {
 		SheetCount() int
 		GetSheet(index int) (Sheet, error)
+		GetSheetByName(name string) (Sheet, error)
 		IterateSheet(index int) (RowIterator, error)
 		Close() error
 	}

@@ -22,6 +22,12 @@ var (
 		Aliases:  []string{"f"},
 	}
 
+	sheetFlag = &cli.StringFlag{
+		Name:    "sheet",
+		Usage:   "specifying the target `SHEET` name",
+		Aliases: []string{"s"},
+	}
+
 	depthFlag = &cli.IntFlag{
 		Name:     "depth",
 		Usage:    "specify the first `DEPTH` rows of excel as the title path",
@@ -52,6 +58,7 @@ var (
 
 	allFlags = []cli.Flag{
 		fileFlag,
+		sheetFlag,
 		depthFlag,
 		firstWildcardFlag,
 		lastLayerEmptyNotAsMergedFlag,
@@ -96,12 +103,18 @@ func main() {
 
 func pathgener(ctx *cli.Context) error {
 	filename := ctx.String(fileFlag.Name)
+	sheetname := ctx.String(sheetFlag.Name)
 	depth := ctx.Int(depthFlag.Name)
 	wb, err := eorm.NewWorkbook(filename)
 	if err != nil {
 		return err
 	}
-	sheet, err := wb.GetSheet(0)
+	var sheet eorm.Sheet
+	if sheetname != "" {
+		sheet, err = wb.GetSheetByName(sheetname)
+	} else {
+		sheet, err = wb.GetSheet(0)
+	}
 	if err != nil {
 		return err
 	}

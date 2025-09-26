@@ -54,11 +54,15 @@ func (x *xlsxWorkbook) GetSheet(index int) (Sheet, error) {
 	if index < 0 || index >= len(x.names) {
 		return nil, ErrOutOfRange
 	}
-	rows, err := x.f.GetRows(x.names[index])
+	return x.GetSheetByName(x.names[index])
+}
+
+func (x *xlsxWorkbook) GetSheetByName(name string) (Sheet, error) {
+	rows, err := x.f.GetRows(name)
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
-	return &xlsxSheet{name: x.names[index], allRows: rows}, nil
+	return &xlsxSheet{name: name, allRows: rows}, nil
 }
 
 func (x *xlsxWorkbook) IterateSheet(index int) (RowIterator, error) {
