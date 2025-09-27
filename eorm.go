@@ -67,8 +67,9 @@ func (e *EORM[T]) IsValid() bool {
 	return true
 }
 
-func (e *EORM[T]) LastError() error { return e.lastErr }
-func (e *EORM[T]) ClrLastError()    { e.lastErr = nil }
+func (e *EORM[T]) LastError() error  { return e.lastErr }
+func (e *EORM[T]) ClrLastError()     { e.lastErr = nil }
+func (e *EORM[T]) DataStartRow() int { return e.params.MinRows(e.columnTree.Depth()) }
 
 // Next 移动到下一行，如果还有行则返回true，否则返回false
 func (e *EORM[T]) Next() bool {
@@ -77,10 +78,12 @@ func (e *EORM[T]) Next() bool {
 	}
 	// 如果没有初始化迭代器，先初始化
 	if e.rowIndex == -1 {
-		if e.columnTree.Depth() >= e.sheet.RowCount() {
+		startRow := e.DataStartRow()
+		if startRow >= e.sheet.RowCount() {
 			return false
 		}
-		e.rowIndex = e.columnTree.Depth() - 1
+		// 因为遍历时先自增，所以这里-1。又因为tree depth不可能小于1，所以这个值不会小于0
+		e.rowIndex = startRow - 1
 	}
 	if e.rowIndex < 0 || e.rowIndex >= e.sheet.RowCount() {
 		return false

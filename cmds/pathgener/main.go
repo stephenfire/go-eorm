@@ -37,7 +37,7 @@ var (
 
 	firstWildcardFlag = &cli.BoolFlag{
 		Name:    "wildcard-first-line",
-		Usage:   "set to true to turn on `GenWildcardForFirstLayer` parameter",
+		Usage:   "set to true to turn on `GenWildcardForFirstRow` parameter",
 		Value:   false,
 		Aliases: []string{"w1"},
 	}
@@ -51,9 +51,16 @@ var (
 
 	lastLayerEmptyNotAsMergedFlag = &cli.BoolFlag{
 		Name:    "last-layer-empty-not-as-merged",
-		Usage:   "set to true to turn on `GenLastLayerNoMerged` parameter",
+		Usage:   "set to true to turn on `GenLastRowNoMerged` parameter",
 		Value:   false,
 		Aliases: []string{"m"},
+	}
+
+	startRowFlag = &cli.IntFlag{
+		Name:    "start-row",
+		Usage:   "set `TitleStartRow` value",
+		Aliases: []string{"r"},
+		Value:   0,
 	}
 
 	allFlags = []cli.Flag{
@@ -63,6 +70,7 @@ var (
 		firstWildcardFlag,
 		lastLayerEmptyNotAsMergedFlag,
 		trimSpaceFlag,
+		startRowFlag,
 	}
 )
 
@@ -120,13 +128,16 @@ func pathgener(ctx *cli.Context) error {
 	}
 	var opts []eorm.Option
 	if ctx.Bool(firstWildcardFlag.Name) {
-		opts = append(opts, eorm.WithGenWildcardForFirstLayer())
+		opts = append(opts, eorm.WithFirstRowWildcard())
 	}
 	if ctx.Bool(trimSpaceFlag.Name) {
 		opts = append(opts, eorm.WithTrimSpace())
 	}
 	if ctx.Bool(lastLayerEmptyNotAsMergedFlag.Name) {
 		opts = append(opts, eorm.WithGenLastLayerNoMerged())
+	}
+	if startRow := ctx.Int(startRowFlag.Name); startRow > 0 {
+		opts = append(opts, eorm.WithTitleStartRow(startRow))
 	}
 	tps, err := eorm.BuildTitlePaths(sheet, depth, opts...)
 	if err != nil {

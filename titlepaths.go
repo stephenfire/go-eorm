@@ -9,14 +9,15 @@ import (
 type TitlePaths []TitlePath
 
 func BuildTitlePaths(sheet Sheet, depth int, opts ...Option) (TitlePaths, error) {
+	params := NewParams(opts...)
+
 	if depth < 1 {
 		return nil, errors.New("eorm: depth must be greater than 0")
 	}
-	if sheet == nil || sheet.RowCount() < depth {
+	minRows := params.MinRows(depth)
+	if sheet == nil || sheet.RowCount() < minRows {
 		return nil, errors.New("eorm: sheet row count must be greater than depth")
 	}
-
-	params := NewParams(opts...)
 
 	var columns TitlePaths
 	appendCell := func(idx int, val string, emptyAsMerged bool) {
@@ -36,8 +37,8 @@ func BuildTitlePaths(sheet Sheet, depth int, opts ...Option) (TitlePaths, error)
 		columns[idx] = append(columns[idx], val)
 	}
 
-	for i := 0; i < depth; i++ {
-		emptyAsMerged := i != depth-1 || !params.GenLastLayerNoMerged
+	for i := params.TitleStartRow; i < minRows; i++ {
+		emptyAsMerged := i != minRows-1 || !params.GenLastRowNoMerged
 		row, err := sheet.GetRow(i)
 		if err != nil {
 			return nil, fmt.Errorf("eorm: get row %d: %w", i, err)
@@ -46,7 +47,7 @@ func BuildTitlePaths(sheet Sheet, depth int, opts ...Option) (TitlePaths, error)
 		j := 0
 		for ; j < colCount; j++ {
 			var val string
-			if i != 0 || !params.GenWildcardForFirstLayer {
+			if i != 0 || !params.GenWildcardForFirstRow {
 				val, err = row.GetColumn(j)
 				if err != nil && !errors.Is(err, ErrEmptyCell) {
 					return nil, fmt.Errorf("eorm: get column %d: %w", j, err)
@@ -59,7 +60,7 @@ func BuildTitlePaths(sheet Sheet, depth int, opts ...Option) (TitlePaths, error)
 		}
 		// 当前row列数少于之前列数
 		for ; j < len(columns); j++ {
-			appendCell(j, "", i != depth-1 || !params.GenLastLayerNoMerged)
+			appendCell(j, "", emptyAsMerged)
 		}
 	}
 	return columns, nil

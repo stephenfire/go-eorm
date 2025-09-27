@@ -69,6 +69,29 @@ func (t *TitleObj1) String() string {
 	return fmt.Sprintf("{id:%d name:%s numbers:%v bool:%t slash:%s num:%d}", t.Id, t.Name, t.Numbers, t.Bool, math.BigIntForPrint(t.Slash), t.Num)
 }
 
+func testTitle1(em *EORM[TitleObj1], t *testing.T) {
+	expectings := []*TitleObj1{
+		&TitleObj1{Id: 10, Name: "name10", Numbers: []Integer{16, 17}, Bool: true, Slash: big.NewInt(14), Num: Integer(15)},
+		&TitleObj1{Id: 20, Name: "name20", Numbers: []Integer{26, 27}, Bool: false, Slash: big.NewInt(24), Num: Integer(25)},
+	}
+
+	i := 0
+	for em.Next() {
+		rowObj, err := em.Current()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i >= len(expectings) {
+			t.Fatalf("eorm: expected %d rows, got %d", len(expectings), i+1)
+		}
+		if !expectings[i].Equals(rowObj) {
+			t.Fatalf("eorm: expected %+v, got %+v", expectings[i], rowObj)
+		}
+		t.Logf("%d: %s check", i, rowObj)
+		i++
+	}
+}
+
 func TestTitle1(t *testing.T) {
 	wb, err := NewWorkbook(filepath.Join("testdata", "title.xlsx"))
 	if err != nil {
@@ -90,27 +113,31 @@ func TestTitle1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewEORM failed: %v", err)
 	}
+	testTitle1(eorm, t)
+}
 
-	expectings := []*TitleObj1{
-		&TitleObj1{Id: 10, Name: "name10", Numbers: []Integer{16, 17}, Bool: true, Slash: big.NewInt(14), Num: Integer(15)},
-		&TitleObj1{Id: 20, Name: "name20", Numbers: []Integer{26, 27}, Bool: false, Slash: big.NewInt(24), Num: Integer(25)},
+func TestTitle1StartAt3(t *testing.T) {
+	wb, err := NewWorkbook(filepath.Join("testdata", "title_start_at_2.xlsx"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = wb.Close()
+	}()
+	if wb.SheetCount() == 0 {
+		t.Fatal("eorm: sheet count is zero")
 	}
 
-	i := 0
-	for eorm.Next() {
-		rowObj, err := eorm.Current()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if i >= len(expectings) {
-			t.Fatalf("eorm: expected %d rows, got %d", len(expectings), i+1)
-		}
-		if !expectings[i].Equals(rowObj) {
-			t.Fatalf("eorm: expected %+v, got %+v", expectings[i], rowObj)
-		}
-		t.Logf("%d: %s check", i, rowObj)
-		i++
+	sheet, err := wb.GetSheet(0)
+	if err != nil {
+		t.Fatal(err)
 	}
+	// 测试创建EORM实例
+	eorm, err := NewEORM[TitleObj1](sheet, reflect.TypeOf(TitleObj1{}), WithTitleStartRow(2))
+	if err != nil {
+		t.Fatalf("NewEORM failed: %v", err)
+	}
+	testTitle1(eorm, t)
 }
 
 type S string

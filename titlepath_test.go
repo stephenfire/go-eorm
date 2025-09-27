@@ -65,7 +65,7 @@ func TestMatchTitlePath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSheet: %v", err)
 	}
-	m, err := MatchTitlePath(pt, sheet)
+	m, err := MatchTitlePath(pt, sheet, &Params{})
 	if err != nil {
 		t.Fatalf("MatchTitlePath: %v", err)
 	}

@@ -441,17 +441,18 @@ func (m *TitleLayer[T]) Values() (map[int]T, error) {
 }
 
 // MatchTitlePath returns column index to value mapping
-func MatchTitlePath[T any](tree *PathTree[T], sheet Sheet) (map[int]T, error) {
+func MatchTitlePath[T any](tree *PathTree[T], sheet Sheet, params *Params) (map[int]T, error) {
 	depth, err := tree.Check()
 	if err != nil {
 		return nil, err
 	}
+	startRow := params.TitleStartRow
 	rowCount := sheet.RowCount()
-	if rowCount < depth {
+	if rowCount < depth+startRow {
 		return nil, errors.New("eorm: row not enough")
 	}
 	layer := NewTitleLayer(tree.root)
-	for i := 0; i < depth; i++ {
+	for i := startRow; i < depth+startRow; i++ {
 		row, err := sheet.GetRow(i)
 		if err != nil {
 			return nil, fmt.Errorf("eorm: get row %d: %w", i, err)

@@ -416,7 +416,7 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 
 	// 构建 fieldIndex -> []columnIndex 的映射
 	// 1. 先从PathTree获取 columnIndex -> fieldIndex
-	columnToField, err := MatchTitlePath(pTree, sheet)
+	columnToField, err := MatchTitlePath(pTree, sheet, params)
 	if err != nil {
 		return nil, nil, err
 	}
