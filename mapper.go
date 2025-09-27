@@ -216,22 +216,38 @@ func (m *ColumnMapper) SetValue(rowData reflect.Value, row Row, columnIndexes []
 	return nil
 }
 
+func colToValue[T any](fn func(index int) (T, error), index int, constraint Constraint) (reflect.Value, error) {
+	v, e := fn(index)
+	if e != nil {
+		if !constraint.NeedValue() && errors.Is(e, ErrEmptyCell) {
+			return reflect.ValueOf(v), nil
+		}
+		return reflect.Value{}, e
+	}
+	return reflect.ValueOf(v), nil
+}
+
+func columnValue(getter func(Row, int) (reflect.Value, error),
+	valueType reflect.Type, row Row, columnIndex int, params *Params) (reflect.Value, error) {
+	val, err := getter(row, columnIndex)
+	if err != nil {
+		if (params.IgnoreParseError && errors.Is(err, ErrParseError)) ||
+			(params.IgnoreOutOfRange && errors.Is(err, ErrOutOfRange)) {
+			return reflect.Zero(valueType), nil
+		}
+		return reflect.Value{}, err
+	}
+	if !val.IsValid() {
+		val = reflect.Zero(valueType)
+	} else if val.Type() != valueType {
+		val = val.Convert(valueType)
+	}
+	return val, nil
+}
+
 func (m *ColumnMapper) getSingleValue(row Row, columnIndex int, params *Params) (reflect.Value, error) {
 	singleMap := func(getter func(row Row, index int) (reflect.Value, error)) (reflect.Value, error) {
-		val, err := getter(row, columnIndex)
-		if err != nil {
-			if (params.IgnoreParseError && errors.Is(err, ErrParseError)) ||
-				(params.IgnoreOutOfRange && errors.Is(err, ErrOutOfRange)) {
-				return reflect.Zero(m.fieldType), nil
-			}
-			return reflect.Value{}, err
-		}
-		if !val.IsValid() {
-			val = reflect.Zero(m.fieldType)
-		} else if val.Type() != m.fieldType {
-			val = val.Convert(m.fieldType)
-		}
-		return val, nil
+		return columnValue(getter, m.fieldType, row, columnIndex, params)
 	}
 	switch m.mappingType {
 	case MTString:
@@ -262,34 +278,13 @@ func (m *ColumnMapper) getSingleValue(row Row, columnIndex int, params *Params) 
 	}
 }
 
-func colToValue[T any](fn func(index int) (T, error), index int, constraint Constraint) (reflect.Value, error) {
-	v, e := fn(index)
-	if e != nil {
-		if !constraint.NeedValue() && errors.Is(e, ErrEmptyCell) {
-			return reflect.ValueOf(v), nil
-		}
-		return reflect.Value{}, e
-	}
-	return reflect.ValueOf(v), nil
-}
-
 func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int, params *Params) (reflect.Value, error) {
 	sliceMap := func(getter func(row Row, index int) (reflect.Value, error)) (reflect.Value, error) {
 		slice := reflect.MakeSlice(m.fieldType, len(columnIndexes), len(columnIndexes))
 		for i, colIdx := range columnIndexes {
-			val, err := getter(row, colIdx)
+			val, err := columnValue(getter, m.fieldType.Elem(), row, colIdx, params)
 			if err != nil {
-				if (params.IgnoreParseError && errors.Is(err, ErrParseError)) ||
-					(params.IgnoreOutOfRange && errors.Is(err, ErrOutOfRange)) {
-					val = reflect.Zero(m.fieldType)
-				} else {
-					return reflect.Value{}, err
-				}
-			}
-			if !val.IsValid() {
-				val = reflect.Zero(m.fieldType)
-			} else if val.Type() != m.fieldType.Elem() {
-				val = val.Convert(m.fieldType.Elem())
+				return reflect.Value{}, err
 			}
 			slice.Index(i).Set(val)
 		}
