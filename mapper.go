@@ -448,8 +448,8 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 		if columnMapper.constraint.NeedMapper() {
 			columnIndexes := fieldToColumns[fieldIndex]
 			if len(columnIndexes) == 0 {
-				return nil, nil, fmt.Errorf("eorm: no column found for %q field at index %d",
-					columnMapper.constraint.String(), fieldIndex)
+				return nil, nil, fmt.Errorf("%w for %q field at index %d",
+					ErrRequiredColumnNotFound, columnMapper.constraint.String(), fieldIndex)
 			}
 		}
 	}

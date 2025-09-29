@@ -15,10 +15,11 @@ const (
 )
 
 var (
-	ErrEmptyPath    = errors.New("eorm: empty path")
-	ErrUnsupported  = errors.New("eorm: unsupported")
-	ErrInvalidState = errors.New("eorm: invalid state")
-	ErrRowNotFound  = errors.New("eorm: row not found")
+	ErrEmptyPath              = errors.New("eorm: empty path")
+	ErrUnsupported            = errors.New("eorm: unsupported")
+	ErrInvalidState           = errors.New("eorm: invalid state")
+	ErrRowNotFound            = errors.New("eorm: row not found")
+	ErrRequiredColumnNotFound = errors.New("eorm: required column not found")
 )
 
 type EORM[T any] struct {
