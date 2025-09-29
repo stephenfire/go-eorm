@@ -67,6 +67,20 @@ func (e *EORM[T]) IsValid() bool {
 	return true
 }
 
+func (e *EORM[T]) IsPerfectMatch() bool {
+	if e == nil || e.rowMapper == nil {
+		return false
+	}
+	return e.rowMapper.IsPerfectMatch()
+}
+
+func (e *EORM[T]) IsMatched() bool {
+	if e == nil || e.rowMapper == nil {
+		return false
+	}
+	return e.rowMapper.IsMatched()
+}
+
 func (e *EORM[T]) LastError() error  { return e.lastErr }
 func (e *EORM[T]) ClrLastError()     { e.lastErr = nil }
 func (e *EORM[T]) DataStartRow() int { return e.params.MinRows(e.columnTree.Depth()) }

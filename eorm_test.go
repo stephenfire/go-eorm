@@ -148,6 +148,8 @@ type TitleObj2 struct {
 	Bool    string   `eorm:"第一级/反引号%60测试/空%20格"`
 	Slash   *big.Int `eorm:"第一级/双引号%22测试/反斜杠%5C"`
 	Num     Integer  `eorm:"第一级/双引号%22测试/第三级"`
+	NoTag1  int64    `eorm:"第一级/不存在/一列"`
+	NoTag2  string
 }
 
 func (t *TitleObj2) SetSlash(in int64) {
@@ -206,6 +208,13 @@ func TestTitle2(t *testing.T) {
 	expectings := []*TitleObj2{
 		&TitleObj2{Id: 10, Name: "name10", Numbers: []S{"16", "17"}, Bool: "TRUE", Slash: big.NewInt(14), Num: Integer(15)},
 		&TitleObj2{Id: 20, Name: "name20", Numbers: []S{"26", "27"}, Bool: "FALSE", Slash: big.NewInt(24), Num: Integer(25)},
+	}
+
+	if eorm.IsPerfectMatch() {
+		t.Fatalf("eorm: perfect match unexpected")
+	}
+	if !eorm.IsMatched() {
+		t.Fatalf("eorm: matched expected")
 	}
 
 	i := 0

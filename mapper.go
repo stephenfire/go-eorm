@@ -150,6 +150,10 @@ func (c Constraint) NeedValue() bool {
 	return c == ConstraintNotNull
 }
 
+func (c Constraint) String() string {
+	return string(c)
+}
+
 func (m *ColumnMapper) String() string {
 	sb := strings.Builder{}
 	sb.WriteString(fmt.Sprintf("[%d]", m.fieldIndex))
@@ -444,7 +448,8 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 		if columnMapper.constraint.NeedMapper() {
 			columnIndexes := fieldToColumns[fieldIndex]
 			if len(columnIndexes) == 0 {
-				return nil, nil, fmt.Errorf("eorm: no column found for required field index %d", fieldIndex)
+				return nil, nil, fmt.Errorf("eorm: no column found for %q field at index %d",
+					columnMapper.constraint.String(), fieldIndex)
 			}
 		}
 	}
@@ -456,6 +461,14 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 		columns: fieldToColumns,
 	}, pTree, nil
 }
+
+// IsPerfectMatch 对象每一个属性都找到了对应列
+func (m *RowMapper[T]) IsPerfectMatch() bool {
+	return len(m.fields) > 0 && len(m.fields) == len(m.columns)
+}
+
+// IsMatched 对象中至少有一个属性找到了对应列
+func (m *RowMapper[T]) IsMatched() bool { return len(m.columns) > 0 }
 
 func (m *RowMapper[T]) Transit(row Row) (*T, error) {
 	if row == nil {
