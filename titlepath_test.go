@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+
+	"github.com/stephenfire/go-tools"
 )
 
 func TestNameEncode(t *testing.T) {
@@ -70,4 +72,13 @@ func TestMatchTitlePath(t *testing.T) {
 		t.Fatalf("MatchTitlePath: %v", err)
 	}
 	t.Log("MatchTitlePath:", m)
+}
+
+func TestTitleEscape(t *testing.T) {
+	bs := []byte{'%', '\'', ',', '"', '/', '\\', '\n', '\r', '\t', '`', ' '}
+	ss := tools.TsToSs(func(t byte) (string, bool) {
+		return string([]byte{t}), true
+	}, bs...)
+	tp := TitlePath(ss)
+	t.Logf("%s", tp.Encode())
 }
