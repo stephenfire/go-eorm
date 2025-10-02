@@ -142,6 +142,8 @@ type SpecialChars struct {
 }
 ```
 
+可以使用cmds/pathgener工具帮你生成excel文件对应的eorm tag。
+
 ### 通配第一行
 
 使用空的第一个标题来跳过第一行表头：

@@ -142,6 +142,8 @@ type SpecialChars struct {
 }
 ```
 
+The `cmds/pathgener` tool can assist you in generating the necessary EORM tags for your Excel files.
+
 ### Wildcard First Row
 
 Use an empty first title to skip the first header row:
