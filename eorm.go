@@ -20,6 +20,7 @@ var (
 	ErrInvalidState           = errors.New("eorm: invalid state")
 	ErrRowNotFound            = errors.New("eorm: row not found")
 	ErrRequiredColumnNotFound = errors.New("eorm: required column not found")
+	ErrInsufficientMatchLevel = errors.New("eorm: insufficient match level")
 )
 
 type EORM[T any] struct {

@@ -453,13 +453,27 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 			}
 		}
 	}
-
-	return &RowMapper[T]{
+	mp := &RowMapper[T]{
 		typ:     objType,
 		params:  params,
 		fields:  fieldsMapper,
 		columns: fieldToColumns,
-	}, pTree, nil
+	}
+	// 5. 检查 match level
+	switch params.RequiredMatchLevel.Formalize() {
+	case MatchLevelPerfect:
+		if !mp.IsPerfectMatch() {
+			return nil, nil, ErrInsufficientMatchLevel
+		}
+	case MatchLevelMatched:
+		if !mp.IsMatched() {
+			return nil, nil, ErrInsufficientMatchLevel
+		}
+	default:
+		// ok
+	}
+
+	return mp, pTree, nil
 }
 
 // IsPerfectMatch 对象每一个属性都找到了对应列
