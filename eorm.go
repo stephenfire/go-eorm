@@ -87,7 +87,7 @@ func (e *EORM[T]) LastError() error  { return e.lastErr }
 func (e *EORM[T]) ClrLastError()     { e.lastErr = nil }
 func (e *EORM[T]) DataStartRow() int { return e.params.MinRows(e.columnTree.Depth()) }
 
-// Next 移动到下一行，如果还有行则返回true，否则返回false
+// Next 移动到下一行，如果还有行则返回true，否则返回false。只能遍历一遍
 func (e *EORM[T]) Next() bool {
 	if !e.IsValid() {
 		return false
@@ -158,6 +158,12 @@ func (e *EORM[T]) Current() (*T, error) {
 	}
 	e.currentObj = obj
 	return e.currentObj, nil
+}
+
+// CurrentRowNumber 返回当前行下标，如果-1，则说明尚未开始遍历，如果-2，表示遍历已完成。
+// 第二返回值表示这个值是否在值范围内，这个值为true时则第一返回值返回了遍历过程中当前值所在sheet的行下标
+func (e *EORM[T]) CurrentRowNumber() (int, bool) {
+	return e.rowIndex, e.rowIndex >= e.DataStartRow()
 }
 
 func (e *EORM[T]) All() iter.Seq2[*T, error] {
