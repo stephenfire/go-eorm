@@ -192,7 +192,7 @@ eorm, err := eorm.NewEORM[User](sheet, reflect.TypeOf(User{}),
     eorm.WithFirstRowWildcard(),       // Generate wildcard for first row
     eorm.WithGenLastLayerNoMerged(),   // Generate last layer without merged cells
     eorm.WithTitleStartRow(2),         // Start reading titles from row 2
-    eorm.WithMatchLevel(eorm.Strict),  // Set matching level
+    eorm.WithMatchLevel(eorm.MatchLevelPerfect),  // Set matching level
 )
 ```
 

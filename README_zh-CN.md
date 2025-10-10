@@ -192,7 +192,7 @@ eorm, err := eorm.NewEORM[User](sheet, reflect.TypeOf(User{}),
     eorm.WithFirstRowWildcard(),       // 为第一行生成通配符
     eorm.WithGenLastLayerNoMerged(),   // 生成未合并的最后一层
     eorm.WithTitleStartRow(2),         // 从第2行开始读取标题
-    eorm.WithMatchLevel(eorm.Strict),  // 设置匹配级别
+    eorm.WithMatchLevel(eorm.MatchLevelPerfect),  // 设置匹配级别
 )
 ```
 
