@@ -113,6 +113,31 @@ type Example struct {
 }
 ```
 
+### Key Concepts
+
+- **Delimiter**: `/` - each `/` represents one additional layer in the Excel header (one more row)
+- **Height**: The number of layers in a title_path equals the number of separators + 1
+- **Consistency**: All `title_path` definitions in the same struct must have the same height, as all columns in a table header have the same height
+- **Empty Titles**: 
+  - When `title_path` starts with `/` (first title is empty), it skips the first header row, acting as a wildcard for the first row
+  - When any layer in `title_path` is an empty string (""), it preferentially matches the last valid value in the same row (merged cells) or matches empty
+
+### Visual Example: Title Path Mapping
+
+Similar to file system paths, title paths use a hierarchical approach to represent Excel columns. The following diagram illustrates how title paths map to Excel headers:
+
+![layer titles](layer_titles.png)
+
+| Column | title_path | Description |
+|--------|------------|-------------|
+| A | `序号//` | Maps to column A with a two-level header where the first level is "序号" and the second level is empty (merged cell) |
+| B | `名称//` | Maps to column B with a two-level header where the first level is "名称" and the second level is empty (merged cell) |
+| C | `第一级/反引号%60测试/空%20格` | Maps to column C with a three-level header: "第一级" → "反引号`测试" → "空 格" |
+| D | `第一级/反引号%60测试/斜杠%2F` | Maps to column D with a three-level header: "第一级" → "反引号`测试" → "斜杠/" |
+| E | `第一级/双引号%22测试/反斜杠%5C` | Maps to column E with a three-level header: "第一级" → "双引号"测试" → "反斜杠\` |
+| F | `第一级/双引号%22测试/第三级` | Maps to column F with a three-level header: "第一级" → "双引号"测试" → "第三级" |
+| G | `第一级/没有第三级/` | Maps to column G with a three-level header: "第一级" → "没有第三级" → empty (merged cell) |
+
 ### Special Characters and Escaping
 
 Special characters in title paths must be escaped using `%HH` format:
@@ -153,6 +178,10 @@ type WildcardExample struct {
     Field string `eorm:"/第二级标题"` // Skips first row, matches second row
 }
 ```
+
+### Array Mapping
+
+When header content may be duplicated, or when wildcards are used in `title_path`, a single `title_path` may correspond to multiple columns, resulting in non-unique values. This enables array mapping functionality.
 
 ## Constraints
 
