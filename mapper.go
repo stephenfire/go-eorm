@@ -228,12 +228,19 @@ func colToValue[T any](fn func(index int) (T, error), index int, constraint Cons
 		}
 		return reflect.Value{}, e
 	}
+	val := reflect.ValueOf(v)
+	if constraint.NeedValue() && (!val.IsValid() || val.IsZero()) {
+		return reflect.Value{}, ErrEmptyCell
+	}
 	return reflect.ValueOf(v), nil
 }
 
-func columnValue(getter func(Row, int) (reflect.Value, error),
+func (m *ColumnMapper) columnValue(getter func(Row, int) (reflect.Value, error),
 	valueType reflect.Type, row Row, columnIndex int, params *Params) (reflect.Value, error) {
 	val, err := getter(row, columnIndex)
+	if m.constraint.NeedValue() && (err != nil || !val.IsValid() || val.IsZero()) {
+		return reflect.Value{}, ErrEmptyCell
+	}
 	if err != nil {
 		if (params.IgnoreParseError && errors.Is(err, ErrParseError)) ||
 			(params.IgnoreOutOfRange && errors.Is(err, ErrOutOfRange)) {
@@ -251,7 +258,7 @@ func columnValue(getter func(Row, int) (reflect.Value, error),
 
 func (m *ColumnMapper) getSingleValue(row Row, columnIndex int, params *Params) (reflect.Value, error) {
 	singleMap := func(getter func(row Row, index int) (reflect.Value, error)) (reflect.Value, error) {
-		return columnValue(getter, m.fieldType, row, columnIndex, params)
+		return m.columnValue(getter, m.fieldType, row, columnIndex, params)
 	}
 	switch m.mappingType {
 	case MTString:
@@ -286,7 +293,7 @@ func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int, params *Param
 	sliceMap := func(getter func(row Row, index int) (reflect.Value, error)) (reflect.Value, error) {
 		slice := reflect.MakeSlice(m.fieldType, len(columnIndexes), len(columnIndexes))
 		for i, colIdx := range columnIndexes {
-			val, err := columnValue(getter, m.fieldType.Elem(), row, colIdx, params)
+			val, err := m.columnValue(getter, m.fieldType.Elem(), row, colIdx, params)
 			if err != nil {
 				return reflect.Value{}, err
 			}
