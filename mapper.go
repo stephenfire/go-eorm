@@ -264,11 +264,13 @@ func (m *ColumnMapper) getSingleValue(row Row, columnIndex int, params *Params) 
 	case MTString:
 		return singleMap(func(row Row, index int) (reflect.Value, error) {
 			if params.TrimSpace {
-				v, err := row.GetColumn(index)
-				if err != nil {
-					return reflect.Value{}, err
-				}
-				return reflect.ValueOf(strings.TrimSpace(v)), nil
+				return colToValue(func(index int) (string, error) {
+					v, err := row.GetColumn(index)
+					if err != nil {
+						return v, err
+					}
+					return strings.TrimSpace(v), nil
+				}, columnIndex, m.constraint)
 			}
 			return colToValue(row.GetColumn, columnIndex, m.constraint)
 		})
@@ -306,11 +308,13 @@ func (m *ColumnMapper) getSliceValue(row Row, columnIndexes []int, params *Param
 	case MTStringSlice:
 		return sliceMap(func(row Row, index int) (reflect.Value, error) {
 			if params.TrimSpace {
-				v, err := row.GetColumn(index)
-				if err != nil {
-					return reflect.Value{}, err
-				}
-				return reflect.ValueOf(strings.TrimSpace(v)), nil
+				return colToValue(func(index int) (string, error) {
+					v, err := row.GetColumn(index)
+					if err != nil {
+						return "", err
+					}
+					return strings.TrimSpace(v), nil
+				}, index, m.constraint)
 			}
 			return colToValue(row.GetColumn, index, m.constraint)
 		})

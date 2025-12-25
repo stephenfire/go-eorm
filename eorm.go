@@ -144,8 +144,13 @@ func (e *EORM[T]) CheckValue() error {
 }
 
 // Current 返回当前行的对象
-func (e *EORM[T]) Current() (*T, error) {
-	if err := e.CheckValue(); err != nil {
+func (e *EORM[T]) Current() (t *T, err error) {
+	defer func() {
+		if err != nil {
+			e.lastErr = err
+		}
+	}()
+	if err = e.CheckValue(); err != nil {
 		return nil, err
 	}
 	if e.currentObj != nil {
@@ -153,7 +158,6 @@ func (e *EORM[T]) Current() (*T, error) {
 	}
 	obj, err := e.rowMapper.Transit(e.currentRow)
 	if err != nil {
-		e.lastErr = err
 		return nil, err
 	}
 	e.currentObj = obj
