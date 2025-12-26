@@ -87,7 +87,8 @@ func (e *EORM[T]) LastError() error  { return e.lastErr }
 func (e *EORM[T]) ClrLastError()     { e.lastErr = nil }
 func (e *EORM[T]) DataStartRow() int { return e.params.MinRows(e.columnTree.Depth()) }
 
-// Next 移动到下一行，如果还有行则返回true，否则返回false。只能遍历一遍
+// Next 移动到下一行，如果还有行则返回true，否则返回false。
+// 无论使用Next()|Current() 还是 All() 或者 NoErrorRows() 只能遍历一次
 func (e *EORM[T]) Next() bool {
 	if !e.IsValid() {
 		return false
@@ -170,11 +171,28 @@ func (e *EORM[T]) CurrentRowNumber() (int, bool) {
 	return e.rowIndex, e.rowIndex >= e.DataStartRow()
 }
 
+// All 遍历每一行，无论是否有error。无论使用Next()|Current() 还是 All() 或者 NoErrorRows() 只能遍历一次
 func (e *EORM[T]) All() iter.Seq2[*T, error] {
 	return func(yield func(*T, error) bool) {
 		for e.Next() {
 			t, err := e.Current()
 			if !yield(t, err) {
+				return
+			}
+		}
+	}
+}
+
+// NoErrorRows 遍历未出错的row，及其在表格中的行号（从0开始，不包括表头）。
+// 无论使用Next()|Current() 还是 All() 或者 NoErrorRows() 只能遍历一次
+func (e *EORM[T]) NoErrorRows() iter.Seq2[int, *T] {
+	return func(yield func(int, *T) bool) {
+		for e.Next() {
+			t, err := e.Current()
+			if err != nil {
+				continue
+			}
+			if !yield(e.rowIndex, t) {
 				return
 			}
 		}
