@@ -206,6 +206,8 @@ type (
 		Depth() (int, error)
 	}
 
+	// PathTree 以 root 为根节点的路径树，所有叶子节点都有值，而值类型为 T。树的所有分支深度都为 depth。
+	// 实际使用时，PathTree = { TitlePath : FieldIndex }, 也就是以在属性tag中定义的表头路径为键，以该属性在对象中的属性下标为值的键值对。
 	PathTree[T any] struct {
 		depth int
 		root  TreeItem[T]
@@ -240,11 +242,13 @@ func (b branch[T]) Depth() (int, error) {
 			return 0, err
 		}
 		if d < 0 {
+			// never returns negative
 			return 0, errors.New("eorm: child depth is negative")
 		}
 		if depth == -1 {
 			depth = 1 + d
 		} else {
+			// all children depth must be same
 			if depth != d+1 {
 				return 0, errors.New("eorm: child depth mismatch")
 			}
@@ -291,6 +295,8 @@ func (p *PathTree[T]) Check() (depth int, err error) {
 	return depth, nil
 }
 
+// Put 将 path 所代表的路径，按层级放入树中，并在叶子节点记录 val 值。
+// 实际使用中，val 记录的是映射对象的属性下标
 func (p *PathTree[T]) Put(val T, path TitlePath) error {
 	if len(path) == 0 {
 		return ErrEmptyPath
@@ -336,7 +342,9 @@ func (p *PathTree[T]) Put(val T, path TitlePath) error {
 const rootIdx = -1
 
 // TitleLayer 从 PathTree 的根开始，带有传承的记录每一级根据列内容匹配的列和对应的节点
-// 当 key == -1 时，表示所有列都匹配的节点。初始化时的值为 {-1: root}
+// 当 key == -1 时，表示所有列都匹配的节点。初始化时的值为 {-1: root}.
+// 使用 PathTree 与实际excel文件表头进行匹配得到  { excel列下表ColumnIndex : 映射对象对应属性下标FieldIndex } 对应关系的过程中，
+// 用 TitleLayer 记录从文件表头自顶向下，每一行匹配后 ColumnIndex 与 PathTree中对应层级的 TreeItem 之间的对应关系。
 type TitleLayer[T any] struct {
 	m        map[int]TreeItem[T]
 	maxWidth int
@@ -410,6 +418,7 @@ func (m *TitleLayer[T]) NextRow(row Row) (*TitleLayer[T], error) {
 		}
 		val = strings.TrimSpace(val)
 		if val == "" {
+			// 如果当前column内容为空，则尝试使用前一个column的值进行匹配
 			if !putNext(i, lastVal) {
 				putNext(i, val)
 			}
@@ -440,7 +449,9 @@ func (m *TitleLayer[T]) Values() (map[int]T, error) {
 	return ret, nil
 }
 
-// MatchTitlePath returns column index to value mapping
+// MatchTitlePath 将excel文件(sheet)中的表头与 tree 所代表的对象属性中定义的映射路径进行匹配，
+// 从而得到 { ColumnIndex : FieldIndex } 的映射关系
+// returns column index to value mapping
 func MatchTitlePath[T any](tree *PathTree[T], sheet Sheet, params *Params) (map[int]T, error) {
 	depth, err := tree.Check()
 	if err != nil {
