@@ -283,12 +283,25 @@ func (x *xlsWorkbook) GetSheet(index int) (Sheet, error) {
 	return x.getSheet(index)
 }
 
-func (x *xlsWorkbook) IterateSheet(index int) (RowIterator, error) {
+func (x *xlsWorkbook) GetStreamSheet(index int) (StreamSheet, error) {
 	sheet, err := x.getSheet(index)
 	if err != nil {
 		return nil, err
 	}
 	return &xlsRowIterator{curRow: -1, sheet: sheet}, nil
+}
+
+func (x *xlsWorkbook) GetStreamSheetByName(name string) (StreamSheet, error) {
+	idx, exist := x.nameMap[name]
+	if !exist {
+		return nil, ErrNotFound
+	}
+	return x.GetStreamSheet(idx)
+}
+
+func (x *xlsWorkbook) GetSheetWriter(index int) (SheetWriter, error) { return nil, ErrUnsupported }
+func (x *xlsWorkbook) GetSheetWriterByName(name string) (SheetWriter, error) {
+	return nil, ErrUnsupported
 }
 
 func (x *xlsWorkbook) Close() error {

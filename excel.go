@@ -10,6 +10,7 @@ import (
 )
 
 type (
+	// Row excel表格中一行数据的抽象类型接口
 	Row interface {
 		ColumnCount() int
 		GetColumn(index int) (string, error)
@@ -19,28 +20,36 @@ type (
 		AllColumns() iter.Seq2[int, string]
 	}
 
+	// Sheet excel中一个表格的抽象类型接口，此时数据已全部读入内存，Workbook 可以被关闭
 	Sheet interface {
 		GetName() string
 		RowCount() int
 		GetRow(index int) (Row, error)
 	}
 
+	// Workbook excel文件的抽象接口类型
 	Workbook interface {
 		SheetCount() int
 		GetSheet(index int) (Sheet, error)
 		GetSheetByName(name string) (Sheet, error)
-		IterateSheet(index int) (RowIterator, error)
+		GetStreamSheet(index int) (StreamSheet, error)
+		GetStreamSheetByName(name string) (StreamSheet, error)
+		GetSheetWriter(index int) (SheetWriter, error)
+		GetSheetWriterByName(name string) (SheetWriter, error)
 		Close() error
 	}
 
-	RowIterator interface {
+	// StreamSheet 通过stream模式读取row data的Sheet，在使用完打开的 StreamSheet 之前不应关闭 Workbook
+	StreamSheet interface {
 		Next() bool
 		Current() (Row, error)
 		Close() error
 	}
 
-	RowReader struct {
-		Row
+	SheetWriter interface {
+		// Write write value to the cell(row, column), where both row and column start with 0.
+		// The valid value types are int64, float64, string, and bool.
+		Write(row, column int, value any) error
 	}
 )
 

@@ -7,13 +7,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/stephenfire/go-tools"
 	"github.com/xuri/excelize/v2"
 )
 
 type (
 	xlsxWorkbook struct {
-		names []string
-		f     *excelize.File
+		names   []string
+		nameSet tools.KSet[string] // valid sheet names
+		f       *excelize.File
 	}
 
 	xlsxSheet struct {
@@ -26,15 +28,25 @@ type (
 	}
 
 	xlsxRow []string
+
+	xlsxWriter struct {
+		f         *excelize.File
+		sheetName string
+	}
 )
+
+func newXlsxWorkbook(f *excelize.File) (Workbook, error) {
+	names := f.GetSheetList()
+	nameSet := tools.NewKSet[string](names...)
+	return &xlsxWorkbook{names: names, nameSet: nameSet, f: f}, nil
+}
 
 func NewXlsxWorkbook(filePath string) (Workbook, error) {
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
-	names := f.GetSheetList()
-	return &xlsxWorkbook{names: names, f: f}, nil
+	return newXlsxWorkbook(f)
 }
 
 func NewXlsxWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
@@ -42,8 +54,7 @@ func NewXlsxWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
-	names := f.GetSheetList()
-	return &xlsxWorkbook{names: names, f: f}, nil
+	return newXlsxWorkbook(f)
 }
 
 func (x *xlsxWorkbook) SheetCount() int {
@@ -58,6 +69,9 @@ func (x *xlsxWorkbook) GetSheet(index int) (Sheet, error) {
 }
 
 func (x *xlsxWorkbook) GetSheetByName(name string) (Sheet, error) {
+	if !x.nameSet.IsExist(name) {
+		return nil, ErrNotFound
+	}
 	rows, err := x.f.GetRows(name)
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
@@ -65,11 +79,32 @@ func (x *xlsxWorkbook) GetSheetByName(name string) (Sheet, error) {
 	return &xlsxSheet{name: name, allRows: rows}, nil
 }
 
-func (x *xlsxWorkbook) IterateSheet(index int) (RowIterator, error) {
+func (x *xlsxWorkbook) GetStreamSheet(index int) (StreamSheet, error) {
 	if index < 0 || index >= len(x.names) {
 		return nil, ErrOutOfRange
 	}
-	rows, err := x.f.Rows(x.names[index])
+	return x.GetStreamSheetByName(x.names[index])
+}
+
+func (x *xlsxWorkbook) GetSheetWriter(index int) (SheetWriter, error) {
+	if index < 0 || index >= len(x.names) {
+		return nil, ErrOutOfRange
+	}
+	return &xlsxWriter{f: x.f, sheetName: x.names[index]}, nil
+}
+
+func (x *xlsxWorkbook) GetSheetWriterByName(name string) (SheetWriter, error) {
+	if !x.nameSet.IsExist(name) {
+		return nil, ErrNotFound
+	}
+	return &xlsxWriter{f: x.f, sheetName: name}, nil
+}
+
+func (x *xlsxWorkbook) GetStreamSheetByName(name string) (StreamSheet, error) {
+	if !x.nameSet.IsExist(name) {
+		return nil, ErrNotFound
+	}
+	rows, err := x.f.Rows(name)
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
@@ -186,4 +221,13 @@ func (x xlsxRowIterator) Current() (Row, error) {
 
 func (x xlsxRowIterator) Close() error {
 	return x.rows.Close()
+}
+
+func (x *xlsxWriter) Write(row, column int, value any) error {
+	col, err := excelize.ColumnNumberToName(column + 1)
+	if err != nil {
+		return fmt.Errorf("excel/xlsx: %w", err)
+	}
+	cell := fmt.Sprintf("%s%d", col, row+1)
+	return x.f.SetCellValue(x.sheetName, cell, value)
 }

@@ -52,7 +52,7 @@ func TestXlsxFile(t *testing.T) {
 
 func iterateTest(t *testing.T, wb Workbook) {
 	for i := 0; i < wb.SheetCount(); i++ {
-		it, err := wb.IterateSheet(i)
+		it, err := wb.GetStreamSheet(i)
 		if err != nil {
 			t.Fatal(err)
 		}
