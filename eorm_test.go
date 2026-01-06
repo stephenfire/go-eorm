@@ -69,7 +69,7 @@ func (t *TitleObj1) String() string {
 	return fmt.Sprintf("{id:%d name:%s numbers:%v bool:%t slash:%s num:%d}", t.Id, t.Name, t.Numbers, t.Bool, math.BigIntForPrint(t.Slash), t.Num)
 }
 
-func testTitle1(em *EORM[TitleObj1], t *testing.T) {
+func testTitle1(em *EORMReader[TitleObj1], t *testing.T) {
 	expectings := []*TitleObj1{
 		&TitleObj1{Id: 10, Name: "name10", Numbers: []Integer{16, 17}, Bool: true, Slash: big.NewInt(14), Num: Integer(15)},
 		&TitleObj1{Id: 20, Name: "name20", Numbers: []Integer{26, 27}, Bool: false, Slash: big.NewInt(24), Num: Integer(25)},
@@ -310,7 +310,7 @@ func TestNewEORM(t *testing.T) {
 
 	if emailFieldIndex != -1 {
 		emailMapper := eorm.rowMapper.fields[emailFieldIndex]
-		if emailMapper != nil && !emailMapper.HasSetter {
+		if emailMapper != nil && !emailMapper.setter.exist {
 			t.Error("Email field should have setter method detected")
 		}
 	}

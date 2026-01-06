@@ -20,7 +20,7 @@ type (
 		AllColumns() iter.Seq2[int, string]
 	}
 
-	// Sheet excel中一个表格的抽象类型接口，此时数据已全部读入内存，Workbook 可以被关闭
+	// Sheet excel中一个表格的抽象类型接口，可随机读取表格中的行内容
 	Sheet interface {
 		GetName() string
 		RowCount() int
@@ -39,13 +39,14 @@ type (
 		Close() error
 	}
 
-	// StreamSheet 通过stream模式读取row data的Sheet，在使用完打开的 StreamSheet 之前不应关闭 Workbook
+	// StreamSheet 通过stream模式读取row data的Sheet，在使用完打开的 StreamSheet 之前不应关闭 Workbook。只能按顺序遍历。
 	StreamSheet interface {
 		Next() bool
 		Current() (Row, error)
 		Close() error
 	}
 
+	// SheetWriter used to write ORM object to excel sheet
 	SheetWriter interface {
 		// Write write value to the cell(row, column), where both row and column start with 0.
 		// The valid value types are int64, float64, string, and bool.

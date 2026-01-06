@@ -23,7 +23,7 @@ var (
 	ErrInsufficientMatchLevel = errors.New("eorm: insufficient match level")
 )
 
-type EORM[T any] struct {
+type EORMReader[T any] struct {
 	sheet      Sheet
 	objType    reflect.Type
 	params     *Params
@@ -35,7 +35,7 @@ type EORM[T any] struct {
 	lastErr    error
 }
 
-func NewEORM[T any](sheet Sheet, objType reflect.Type, opts ...Option) (*EORM[T], error) {
+func NewEORM[T any](sheet Sheet, objType reflect.Type, opts ...Option) (*EORMReader[T], error) {
 	// 检查objType是否为结构体
 	if objType.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("eorm: objType must be a struct, got %s", objType.Kind())
@@ -49,7 +49,7 @@ func NewEORM[T any](sheet Sheet, objType reflect.Type, opts ...Option) (*EORM[T]
 		return nil, err
 	}
 
-	return &EORM[T]{
+	return &EORMReader[T]{
 		sheet:      sheet,
 		objType:    objType,
 		params:     params,
@@ -59,7 +59,7 @@ func NewEORM[T any](sheet Sheet, objType reflect.Type, opts ...Option) (*EORM[T]
 	}, nil
 }
 
-func (e *EORM[T]) IsValid() bool {
+func (e *EORMReader[T]) IsValid() bool {
 	if e == nil || e.sheet == nil || e.objType == nil || e.rowMapper == nil || e.columnTree == nil {
 		return false
 	}
@@ -69,27 +69,27 @@ func (e *EORM[T]) IsValid() bool {
 	return true
 }
 
-func (e *EORM[T]) IsPerfectMatch() bool {
+func (e *EORMReader[T]) IsPerfectMatch() bool {
 	if e == nil || e.rowMapper == nil {
 		return false
 	}
 	return e.rowMapper.IsPerfectMatch()
 }
 
-func (e *EORM[T]) IsMatched() bool {
+func (e *EORMReader[T]) IsMatched() bool {
 	if e == nil || e.rowMapper == nil {
 		return false
 	}
 	return e.rowMapper.IsMatched()
 }
 
-func (e *EORM[T]) LastError() error  { return e.lastErr }
-func (e *EORM[T]) ClrLastError()     { e.lastErr = nil }
-func (e *EORM[T]) DataStartRow() int { return e.params.MinRows(e.columnTree.Depth()) }
+func (e *EORMReader[T]) LastError() error  { return e.lastErr }
+func (e *EORMReader[T]) ClrLastError()     { e.lastErr = nil }
+func (e *EORMReader[T]) DataStartRow() int { return e.params.MinRows(e.columnTree.Depth()) }
 
 // Next 移动到下一行，如果还有行则返回true，否则返回false。
 // 无论使用Next()|Current() 还是 All() 或者 NoErrorRows() 只能遍历一次
-func (e *EORM[T]) Next() bool {
+func (e *EORMReader[T]) Next() bool {
 	if !e.IsValid() {
 		return false
 	}
@@ -134,7 +134,7 @@ func (e *EORM[T]) Next() bool {
 	return false
 }
 
-func (e *EORM[T]) CheckValue() error {
+func (e *EORMReader[T]) CheckValue() error {
 	if !e.IsValid() || e.rowIndex < 0 || e.rowIndex >= e.sheet.RowCount() {
 		return ErrInvalidState
 	}
@@ -145,7 +145,7 @@ func (e *EORM[T]) CheckValue() error {
 }
 
 // Current 返回当前行的对象
-func (e *EORM[T]) Current() (t *T, err error) {
+func (e *EORMReader[T]) Current() (t *T, err error) {
 	defer func() {
 		if err != nil {
 			e.lastErr = err
@@ -167,12 +167,12 @@ func (e *EORM[T]) Current() (t *T, err error) {
 
 // CurrentRowNumber 返回当前行下标，如果-1，则说明尚未开始遍历，如果-2，表示遍历已完成。
 // 第二返回值表示这个值是否在值范围内，这个值为true时则第一返回值返回了遍历过程中当前值所在sheet的行下标
-func (e *EORM[T]) CurrentRowNumber() (int, bool) {
+func (e *EORMReader[T]) CurrentRowNumber() (int, bool) {
 	return e.rowIndex, e.rowIndex >= e.DataStartRow()
 }
 
 // All 遍历每一行，无论是否有error。无论使用Next()|Current() 还是 All() 或者 NoErrorRows() 只能遍历一次
-func (e *EORM[T]) All() iter.Seq2[*T, error] {
+func (e *EORMReader[T]) All() iter.Seq2[*T, error] {
 	return func(yield func(*T, error) bool) {
 		for e.Next() {
 			t, err := e.Current()
@@ -185,7 +185,7 @@ func (e *EORM[T]) All() iter.Seq2[*T, error] {
 
 // NoErrorRows 遍历未出错的row，及其在表格中的行号（从0开始，不包括表头）。
 // 无论使用Next()|Current() 还是 All() 或者 NoErrorRows() 只能遍历一次
-func (e *EORM[T]) NoErrorRows() iter.Seq2[int, *T] {
+func (e *EORMReader[T]) NoErrorRows() iter.Seq2[int, *T] {
 	return func(yield func(int, *T) bool) {
 		for e.Next() {
 			t, err := e.Current()
