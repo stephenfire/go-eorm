@@ -6,8 +6,9 @@ import (
 )
 
 type EORMWriter[T any] struct {
-	w         SheetWriter
-	rowMapper *RowMapper[T]
+	w           SheetWriter
+	rowMapper   *RowMapper[T]
+	curRowIndex int
 }
 
 func NewWriter[T any](w SheetWriter, objType reflect.Type, opts ...Option) (*EORMWriter[T], error) {
@@ -30,7 +31,28 @@ func NewWriter[T any](w SheetWriter, objType reflect.Type, opts ...Option) (*EOR
 	}
 
 	return &EORMWriter[T]{
-		w:         w,
-		rowMapper: rowMapper,
+		w:           w,
+		rowMapper:   rowMapper,
+		curRowIndex: stream.CurrentRowNumber() + 1,
 	}, nil
+}
+
+// Append write all not nil objects from curRowIndex in input order. returns the number of wrote objects.
+func (w *EORMWriter[T]) Append(objs ...*T) (int, error) {
+	n := 0
+	for _, obj := range objs {
+		if obj == nil {
+			continue
+		}
+		if err := w.rowMapper.Write(w.w, w.curRowIndex, obj); err != nil {
+			return n, err
+		}
+		n += 1
+		w.curRowIndex += 1
+	}
+	return n, nil
+}
+
+func (w *EORMWriter[T]) SkipRows(n int) {
+	w.curRowIndex += n
 }

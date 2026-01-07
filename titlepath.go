@@ -495,20 +495,20 @@ func MatchTitlePathByStream[T any](tree *PathTree[T], stream StreamSheet, params
 		}
 	}
 	layer := NewTitleLayer(tree.root)
-	for i := startRow; i < depth+startRow; i++ {
+	for i := 0; i < depth; i++ {
 		if !stream.Next() {
-			return nil, fmt.Errorf("eorm: row number %d out of range", i)
+			return nil, fmt.Errorf("eorm: row number %d out of range", stream.CurrentRowNumber()+1)
 		}
 		row, err := stream.Current()
 		if err != nil {
-			return nil, fmt.Errorf("eorm: get row %d: %w", i, err)
+			return nil, fmt.Errorf("eorm: get row %d: %w", stream.CurrentRowNumber(), err)
 		}
 		if row == nil {
-			return nil, fmt.Errorf("eorm: get row %d nil", i)
+			return nil, fmt.Errorf("eorm: get row %d nil", stream.CurrentRowNumber())
 		}
 		layer, err = layer.NextRow(row)
 		if err != nil {
-			return nil, fmt.Errorf("eorm: layer next row %d: %w", i, err)
+			return nil, fmt.Errorf("eorm: layer next row %d: %w", stream.CurrentRowNumber(), err)
 		}
 	}
 	if layer.Size() == 0 {
