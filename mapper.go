@@ -195,7 +195,11 @@ func newCallingMethod(field reflect.StructField, isSetter bool,
 	}
 }
 
-func NewColumnMapper(objType reflect.Type, fieldIdx int, field reflect.StructField) (*ColumnMapper, error) {
+func (c callingMethod) isValid() bool {
+	return c._type != nil
+}
+
+func NewColumnMapper(objType reflect.Type, fieldIdx int, field reflect.StructField, params *Params) (*ColumnMapper, error) {
 	titlePath, constraint, err := titlePathInTag(field)
 	if err != nil {
 		return nil, err
@@ -213,11 +217,13 @@ func NewColumnMapper(objType reflect.Type, fieldIdx int, field reflect.StructFie
 		return nil, err
 	}
 
-	// getter method
-	getterMethod, getterMtType, returnType, hasGetter := findGetterMethod(objType, field.Name)
-	getter, err = newCallingMethod(field, false, hasGetter, getterMethod, getterMtType, returnType)
-	if err != nil {
-		return nil, err
+	if params != nil && params.Writable {
+		// getter method
+		getterMethod, getterMtType, returnType, hasGetter := findGetterMethod(objType, field.Name)
+		getter, err = newCallingMethod(field, false, hasGetter, getterMethod, getterMtType, returnType)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	columnMapper := &ColumnMapper{
@@ -239,13 +245,17 @@ func (m *ColumnMapper) String() string {
 	sb.WriteString(":[")
 	sb.WriteString(m.titlePath.String())
 	sb.WriteString("]")
-	sb.WriteString(fmt.Sprintf(", Setter(%s)", m.setter.mappingType.String()))
-	if m.setter.exist {
-		sb.WriteString(fmt.Sprintf("(%s)", m.setter.method.Name))
+	if m.setter.isValid() {
+		sb.WriteString(fmt.Sprintf(", Setter(%s)", m.setter.mappingType.String()))
+		if m.setter.exist {
+			sb.WriteString(fmt.Sprintf("(%s)", m.setter.method.Name))
+		}
 	}
-	sb.WriteString(fmt.Sprintf(", Getter(%s)", m.getter.mappingType.String()))
-	if m.setter.exist {
-		sb.WriteString(fmt.Sprintf("(%s)", m.getter.method.Name))
+	if m.getter.isValid() {
+		sb.WriteString(fmt.Sprintf(", Getter(%s)", m.getter.mappingType.String()))
+		if m.getter.exist {
+			sb.WriteString(fmt.Sprintf("(%s)", m.getter.method.Name))
+		}
 	}
 	return sb.String()
 }
@@ -501,7 +511,10 @@ func titlePathInTag(field reflect.StructField) (TitlePath, string, error) {
 	return titlePath, constraint, nil
 }
 
-func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*RowMapper[T], *PathTree[int], error) {
+func newRowMapper[T any](
+	objType reflect.Type,
+	titlePathMatcher func(tree *PathTree[int], params *Params) (columnToField map[int]int, err error),
+	params *Params) (*RowMapper[T], *PathTree[int], error) {
 	if objType.Kind() != reflect.Struct {
 		return nil, nil, fmt.Errorf("eorm: objType must be a struct, got %s", objType.Kind())
 	}
@@ -511,7 +524,7 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 	numFields := objType.NumField()
 	for i := 0; i < numFields; i++ {
 		field := objType.Field(i)
-		columnMapper, err := NewColumnMapper(objType, i, field)
+		columnMapper, err := NewColumnMapper(objType, i, field, params)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -527,7 +540,7 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 
 	// 构建 fieldIndex -> []columnIndex 的映射
 	// 1. 先从PathTree获取 columnIndex -> fieldIndex
-	columnToField, err := MatchTitlePath(pTree, sheet, params)
+	columnToField, err := titlePathMatcher(pTree, params)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -583,6 +596,26 @@ func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*Ro
 	}
 
 	return mp, pTree, nil
+}
+
+func NewRowMapper[T any](objType reflect.Type, sheet Sheet, params *Params) (*RowMapper[T], *PathTree[int], error) {
+	return newRowMapper[T](
+		objType,
+		func(tree *PathTree[int], params *Params) (columnToField map[int]int, err error) {
+			return MatchTitlePath(tree, sheet, params)
+		},
+		params,
+	)
+}
+
+func NewRowMapperByStream[T any](objType reflect.Type, stream StreamSheet, params *Params) (*RowMapper[T], *PathTree[int], error) {
+	return newRowMapper[T](
+		objType,
+		func(tree *PathTree[int], params *Params) (columnToField map[int]int, err error) {
+			return MatchTitlePathByStream(tree, stream, params)
+		},
+		params,
+	)
 }
 
 // IsPerfectMatch 对象每一个属性都找到了对应列

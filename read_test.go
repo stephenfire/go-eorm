@@ -2,140 +2,316 @@ package eorm
 
 import (
 	"fmt"
+	"math/big"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"testing"
 
-	"github.com/xuri/excelize/v2"
+	"github.com/stephenfire/go-common/math"
+	"github.com/stephenfire/go-tools"
 )
 
-func rangeTest(t *testing.T, wb Workbook) {
-	for i := 0; i < wb.SheetCount(); i++ {
-		sheet, err := wb.GetSheet(i)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for j := 0; j < sheet.RowCount(); j++ {
-			row, err := sheet.GetRow(j)
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Logf("Row %d-%d:", i, j)
-			for k := 0; k < row.ColumnCount(); k++ {
-				v, err := row.GetColumn(k)
-				if err != nil {
-					t.Fatal(err)
-				}
-				t.Logf("\tColumn %d: %s", k, v)
-			}
-		}
+// TestUser 测试用的结构体，包含各种eorm标签
+type TestUser struct {
+	ID     int64  `eorm:"序号//"`
+	Name   string `eorm:"名称//"`
+	Email  string `eorm:"第一级/邮箱/地址"`
+	Age    int64  `eorm:"第一级/年龄/数值"`
+	Active bool   `eorm:"状态//"`
+}
+
+// SetEmail 自定义setter方法
+func (u *TestUser) SetEmail(email string) {
+	u.Email = "custom_" + email
+}
+
+// SetNames 数组setter方法
+func (u *TestUser) SetNames(names []string) {
+	if len(names) > 0 {
+		u.Name = names[0] + "_from_array"
 	}
 }
 
-func TestXlsFile(t *testing.T) {
-	wb, err := NewXlsWorkbook(filepath.Join("testdata", "example1.xls"))
+type Integer int64
+
+type TitleObj1 struct {
+	Id      int64     `eorm:"序号//"`
+	Name    string    `eorm:"名称//"`
+	Numbers []Integer `eorm:"第一级/第二级/第三级"`
+	Bool    bool      `eorm:"第一级/反引号%60测试/空%20格"`
+	Slash   *big.Int  `eorm:"第一级/双引号%22测试/反斜杠%5C"`
+	Num     Integer   `eorm:"第一级/双引号%22测试/第三级"`
+}
+
+func (t *TitleObj1) SetSlash(in int64) {
+	t.Slash = big.NewInt(in)
+}
+
+func (t *TitleObj1) Equals(o *TitleObj1) bool {
+	if t == o {
+		return true
+	}
+	if t == nil || o == nil {
+		return false
+	}
+	return t.Id == o.Id && t.Name == o.Name &&
+		tools.KS[Integer](t.Numbers).Equal(o.Numbers) &&
+		t.Bool == o.Bool &&
+		math.CompareBigInt(t.Slash, o.Slash) == 0 &&
+		t.Num == o.Num
+}
+
+func (t *TitleObj1) String() string {
+	if t == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("{id:%d name:%s numbers:%v bool:%t slash:%s num:%d}", t.Id, t.Name, t.Numbers, t.Bool, math.BigIntForPrint(t.Slash), t.Num)
+}
+
+func testTitle1(em *EORMReader[TitleObj1], t *testing.T) {
+	expectings := []*TitleObj1{
+		&TitleObj1{Id: 10, Name: "name10", Numbers: []Integer{16, 17}, Bool: true, Slash: big.NewInt(14), Num: Integer(15)},
+		&TitleObj1{Id: 20, Name: "name20", Numbers: []Integer{26, 27}, Bool: false, Slash: big.NewInt(24), Num: Integer(25)},
+	}
+
+	i := 0
+	for em.Next() {
+		rowObj, err := em.Current()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i >= len(expectings) {
+			t.Fatalf("eorm: expected %d rows, got %d", len(expectings), i+1)
+		}
+		if !expectings[i].Equals(rowObj) {
+			t.Fatalf("eorm: expected %+v, got %+v", expectings[i], rowObj)
+		}
+		t.Logf("%d: %s check", i, rowObj)
+		i++
+	}
+}
+
+func TestTitle1(t *testing.T) {
+	wb, err := NewWorkbook(filepath.Join("testdata", "title.xlsx"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		_ = wb.Close()
 	}()
-	rangeTest(t, wb)
-}
+	if wb.SheetCount() == 0 {
+		t.Fatal("eorm: sheet count is zero")
+	}
 
-func TestXlsxFile(t *testing.T) {
-	wb, err := NewXlsxWorkbook(filepath.Join("testdata", "example2.xlsx"))
+	sheet, err := wb.GetSheet(0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rangeTest(t, wb)
-}
-
-func iterateTest(t *testing.T, wb Workbook) {
-	for i := 0; i < wb.SheetCount(); i++ {
-		it, err := wb.GetStreamSheet(i)
-		if err != nil {
-			t.Fatal(err)
-		}
-		count := 0
-		for it.Next() {
-			row, err := it.Current()
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Logf("Row %d-%d:", i, count)
-			for k := 0; k < row.ColumnCount(); k++ {
-				v, err := row.GetColumn(k)
-				if err != nil {
-					t.Fatal(err)
-				}
-				t.Logf("\tColumn %d: %s", k, v)
-			}
-			count++
-		}
-		_ = it.Close()
+	// 测试创建EORM实例
+	eorm, err := NewReader[TitleObj1](sheet, reflect.TypeOf(TitleObj1{}))
+	if err != nil {
+		t.Fatalf("NewReader failed: %v", err)
 	}
+	testTitle1(eorm, t)
 }
 
-func TestIterXls(t *testing.T) {
-	wb, err := NewXlsWorkbook(filepath.Join("testdata", "example1.xls"))
+func TestTitle1StartAt3(t *testing.T) {
+	wb, err := NewWorkbook(filepath.Join("testdata", "title_start_at_2.xlsx"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		_ = wb.Close()
 	}()
-	iterateTest(t, wb)
-}
+	if wb.SheetCount() == 0 {
+		t.Fatal("eorm: sheet count is zero")
+	}
 
-func TestIterXlsx(t *testing.T) {
-	wb, err := NewXlsxWorkbook(filepath.Join("testdata", "example2.xlsx"))
+	sheet, err := wb.GetSheet(0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	iterateTest(t, wb)
-}
-
-func TestXlsxTitle(t *testing.T) {
-	wb, err := NewXlsxWorkbook(filepath.Join("testdata", "title.xlsx"))
+	// 测试创建EORM实例
+	eorm, err := NewReader[TitleObj1](sheet, reflect.TypeOf(TitleObj1{}), WithTitleStartRow(2))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("NewReader failed: %v", err)
 	}
-	rangeTest(t, wb)
+	testTitle1(eorm, t)
 }
 
-func TestXlsTitle(t *testing.T) {
-	wb, err := NewXlsWorkbook(filepath.Join("testdata", "title.xls"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rangeTest(t, wb)
+type S string
+type TitleObj2 struct {
+	Id      int64    `eorm:"序号//"`
+	Name    string   `eorm:"名称//"`
+	Numbers []S      `eorm:"第一级/第二级/第三级"`
+	Bool    string   `eorm:"第一级/反引号%60测试/空%20格"`
+	Slash   *big.Int `eorm:"第一级/双引号%22测试/反斜杠%5C"`
+	Num     Integer  `eorm:"第一级/双引号%22测试/第三级"`
+	NoTag1  int64    `eorm:"第一级/不存在/一列"`
+	NoTag2  string
 }
 
-func TestIterTitle(t *testing.T) {
-	wb, err := NewXlsxWorkbook(filepath.Join("testdata", "title.xlsx"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	iterateTest(t, wb)
+func (t *TitleObj2) SetSlash(in int64) {
+	t.Slash = big.NewInt(in)
 }
 
-func TestAllMergeCells(t *testing.T) {
-	f, err := excelize.OpenFile(filepath.Join("testdata", "title.xlsx"))
+func (t *TitleObj2) SetNumbers(in []int64) {
+	t.Numbers = tools.TsToSs(func(t int64) (S, bool) {
+		return S(strconv.FormatInt(t, 10)), true
+	}, in...)
+}
+
+func (t *TitleObj2) Equals(o *TitleObj2) bool {
+	if t == o {
+		return true
+	}
+	if t == nil || o == nil {
+		return false
+	}
+	return t.Id == o.Id && t.Name == o.Name &&
+		tools.KS[S](t.Numbers).Equal(o.Numbers) &&
+		t.Bool == o.Bool &&
+		math.CompareBigInt(t.Slash, o.Slash) == 0 &&
+		t.Num == o.Num
+}
+
+func (t *TitleObj2) String() string {
+	if t == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("{id:%d name:%s numbers:%v bool:%s slash:%s num:%d}", t.Id, t.Name, t.Numbers, t.Bool, math.BigIntForPrint(t.Slash), t.Num)
+}
+
+func TestTitle2(t *testing.T) {
+	wb, err := NewWorkbook(filepath.Join("testdata", "title.xlsx"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		_ = f.Close()
+		_ = wb.Close()
 	}()
-	// 获取指定工作表的合并单元格信息
-	mergeCells, err := f.GetMergeCells("Sheet1")
-	if err != nil {
-		fmt.Println(err)
-		return
+	if wb.SheetCount() == 0 {
+		t.Fatal("eorm: sheet count is zero")
 	}
 
-	// 遍历所有合并单元格
-	for _, mc := range mergeCells {
-		fmt.Printf("合并区域: %s - %s, 起始值: %s\n", mc.GetStartAxis(), mc.GetEndAxis(), mc.GetCellValue())
+	sheet, err := wb.GetSheet(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 测试创建EORM实例
+	eorm, err := NewReader[TitleObj2](sheet, reflect.TypeOf(TitleObj2{}))
+	if err != nil {
+		t.Fatalf("NewReader failed: %v", err)
+	}
+
+	expectings := []*TitleObj2{
+		&TitleObj2{Id: 10, Name: "name10", Numbers: []S{"16", "17"}, Bool: "TRUE", Slash: big.NewInt(14), Num: Integer(15)},
+		&TitleObj2{Id: 20, Name: "name20", Numbers: []S{"26", "27"}, Bool: "FALSE", Slash: big.NewInt(24), Num: Integer(25)},
+	}
+
+	if eorm.IsPerfectMatch() {
+		t.Fatalf("eorm: perfect match unexpected")
+	}
+	if !eorm.IsMatched() {
+		t.Fatalf("eorm: matched expected")
+	}
+
+	i := 0
+	for eorm.Next() {
+		rowObj, err := eorm.Current()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i >= len(expectings) {
+			t.Fatalf("eorm: expected %d rows, got %d", len(expectings), i+1)
+		}
+		if !expectings[i].Equals(rowObj) {
+			t.Fatalf("eorm: expected %+v, got %+v", expectings[i], rowObj)
+		}
+		t.Logf("%d: %s check", i, rowObj)
+		i++
+	}
+}
+
+func TestNewEORM(t *testing.T) {
+	objType := reflect.TypeOf(TestUser{})
+
+	wb, err := NewWorkbook(filepath.Join("testdata", "title.xlsx"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = wb.Close()
+	}()
+	if wb.SheetCount() == 0 {
+		t.Fatal("eorm: sheet count is zero")
+	}
+
+	sheet, err := wb.GetSheet(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 测试创建EORM实例
+	eorm, err := NewReader[TestUser](sheet, objType)
+	if err != nil {
+		t.Fatalf("NewReader failed: %v", err)
+	}
+
+	// 验证EORM结构体字段
+	if eorm.objType != objType {
+		t.Errorf("Expected objType %v, got %v", objType, eorm.objType)
+	}
+
+	if eorm.rowMapper == nil {
+		t.Error("Expected rowMapper to be initialized")
+	}
+
+	if eorm.columnTree == nil {
+		t.Error("Expected columnTree to be initialized")
+	}
+
+	// 验证ColumnMapper是否正确创建
+	expectedFields := 5 // TestUser有5个带eorm标签的字段
+	if len(eorm.rowMapper.fields) != expectedFields {
+		t.Errorf("Expected %d fields in rowMapper, got %d", expectedFields, len(eorm.rowMapper.fields))
+	}
+
+	// 验证特定字段的ColumnMapper
+	for fieldIndex, columnMapper := range eorm.rowMapper.fields {
+		if columnMapper == nil {
+			t.Errorf("ColumnMapper for field index %d is nil", fieldIndex)
+			continue
+		}
+
+		// 验证fieldIndex和fieldName匹配
+		field := objType.Field(fieldIndex)
+		if columnMapper.fieldName != field.Name {
+			t.Errorf("Field name mismatch for index %d: expected %s, got %s",
+				fieldIndex, field.Name, columnMapper.fieldName)
+		}
+
+		// 验证titlePath不为空
+		if len(columnMapper.titlePath) == 0 {
+			t.Errorf("TitlePath for field %s is empty", field.Name)
+		}
+
+		t.Logf("Field %d: Mapper: %s", fieldIndex, columnMapper)
+	}
+
+	// 验证setter方法检测
+	emailFieldIndex := -1
+	for i := 0; i < objType.NumField(); i++ {
+		if objType.Field(i).Name == "Email" {
+			emailFieldIndex = i
+			break
+		}
+	}
+
+	if emailFieldIndex != -1 {
+		emailMapper := eorm.rowMapper.fields[emailFieldIndex]
+		if emailMapper != nil && !emailMapper.setter.exist {
+			t.Error("Email field should have setter method detected")
+		}
 	}
 }

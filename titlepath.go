@@ -481,3 +481,38 @@ func MatchTitlePath[T any](tree *PathTree[T], sheet Sheet, params *Params) (map[
 	}
 	return layer.Values()
 }
+
+func MatchTitlePathByStream[T any](tree *PathTree[T], stream StreamSheet, params *Params) (map[int]T, error) {
+	depth, err := tree.Check()
+	if err != nil {
+		return nil, err
+	}
+	startRow := params.TitleStartRow
+	if startRow > 0 {
+		err = stream.Skip(startRow)
+		if err != nil {
+			return nil, err
+		}
+	}
+	layer := NewTitleLayer(tree.root)
+	for i := startRow; i < depth+startRow; i++ {
+		if !stream.Next() {
+			return nil, fmt.Errorf("eorm: row number %d out of range", i)
+		}
+		row, err := stream.Current()
+		if err != nil {
+			return nil, fmt.Errorf("eorm: get row %d: %w", i, err)
+		}
+		if row == nil {
+			return nil, fmt.Errorf("eorm: get row %d nil", i)
+		}
+		layer, err = layer.NextRow(row)
+		if err != nil {
+			return nil, fmt.Errorf("eorm: layer next row %d: %w", i, err)
+		}
+	}
+	if layer.Size() == 0 {
+		return nil, nil
+	}
+	return layer.Values()
+}

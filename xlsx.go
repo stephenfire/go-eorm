@@ -24,7 +24,8 @@ type (
 	}
 
 	xlsxRowIterator struct {
-		rows *excelize.Rows
+		rows   *excelize.Rows
+		rowNum int
 	}
 
 	xlsxRow []string
@@ -104,11 +105,7 @@ func (x *xlsxWorkbook) GetStreamSheetByName(name string) (StreamSheet, error) {
 	if !x.nameSet.IsExist(name) {
 		return nil, ErrNotFound
 	}
-	rows, err := x.f.Rows(name)
-	if err != nil {
-		return nil, fmt.Errorf("excel/xlsx: %w", err)
-	}
-	return &xlsxRowIterator{rows: rows}, nil
+	return newXlsxRowIterator(x.f, name)
 }
 
 func (x *xlsxWorkbook) Close() error {
@@ -207,11 +204,23 @@ func (x xlsxRow) AllColumns() iter.Seq2[int, string] {
 	}
 }
 
-func (x xlsxRowIterator) Next() bool {
-	return x.rows.Next()
+func newXlsxRowIterator(f *excelize.File, sheetName string) (StreamSheet, error) {
+	rows, err := f.Rows(sheetName)
+	if err != nil {
+		return nil, fmt.Errorf("excel/xlsx: %w", err)
+	}
+	return &xlsxRowIterator{rows: rows, rowNum: -1}, nil
 }
 
-func (x xlsxRowIterator) Current() (Row, error) {
+func (x *xlsxRowIterator) Next() bool {
+	if x.rows.Next() {
+		x.rowNum++
+		return true
+	}
+	return false
+}
+
+func (x *xlsxRowIterator) Current() (Row, error) {
 	row, err := x.rows.Columns()
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
@@ -219,7 +228,21 @@ func (x xlsxRowIterator) Current() (Row, error) {
 	return xlsxRow(row), nil
 }
 
-func (x xlsxRowIterator) Close() error {
+func (x *xlsxRowIterator) CurrentRowNumber() int {
+	return x.rowNum
+}
+
+func (x *xlsxRowIterator) Skip(rowCount int) error {
+	for i := 0; i < rowCount; i++ {
+		if x.Next() {
+			continue
+		}
+		return ErrOutOfRange
+	}
+	return nil
+}
+
+func (x *xlsxRowIterator) Close() error {
 	return x.rows.Close()
 }
 
@@ -230,4 +253,23 @@ func (x *xlsxWriter) Write(row, column int, value any) error {
 	}
 	cell := fmt.Sprintf("%s%d", col, row+1)
 	return x.f.SetCellValue(x.sheetName, cell, value)
+}
+
+func (x *xlsxWriter) SaveTo(w io.Writer) error {
+	_, err := x.f.WriteTo(w)
+	if err != nil {
+		return fmt.Errorf("excel/xlsx: %w", err)
+	}
+	return nil
+}
+
+func (x *xlsxWriter) Close() error {
+	if err := x.f.Close(); err != nil {
+		return fmt.Errorf("excel/xlsx: %w", err)
+	}
+	return nil
+}
+
+func (x *xlsxWriter) Stream() (StreamSheet, error) {
+	return newXlsxRowIterator(x.f, x.sheetName)
 }

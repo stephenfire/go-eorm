@@ -253,6 +253,21 @@ func (x *xlsRowIterator) Current() (Row, error) {
 	return x.sheet.GetRow(x.curRow)
 }
 
+func (x *xlsRowIterator) CurrentRowNumber() int {
+	return x.curRow
+}
+
+func (x *xlsRowIterator) Skip(rowCount int) error {
+	if rowCount <= 0 {
+		return fmt.Errorf("excel/xls: invalid row num: %d", rowCount)
+	}
+	if x.sheet.rowCount-x.curRow < rowCount {
+		return ErrOutOfRange
+	}
+	x.curRow += rowCount
+	return nil
+}
+
 func (x *xlsRowIterator) Close() error { return nil }
 
 func (x *xlsWorkbook) SheetCount() int {

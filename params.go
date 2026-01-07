@@ -10,6 +10,7 @@ type (
 		GenLastRowNoMerged     bool       // 生成TitlePath时，最后一行的空不认为是横向合并
 		TitleStartRow          int        // 从哪一行(行号从0开始)开始分析title_path, 所有小于0的值均被认为是0
 		RequiredMatchLevel     MatchLevel // 需要类型与excel表头的匹配程度，无论何值，tag.constraint的要求必须达成
+		Writable               bool       // 是否可写
 	}
 
 	Option func(p *Params)
@@ -39,6 +40,7 @@ func WithFirstRowWildcard() Option       { return func(p *Params) { p.GenWildcar
 func WithGenLastLayerNoMerged() Option   { return func(p *Params) { p.GenLastRowNoMerged = true } }
 func WithTitleStartRow(r int) Option     { return func(p *Params) { p.TitleStartRow = max(r, 0) } }
 func WithMatchLevel(l MatchLevel) Option { return func(p *Params) { p.RequiredMatchLevel = l } }
+func WithWrite() Option                  { return func(p *Params) { p.Writable = true } }
 func WithParams(src *Params) Option      { return func(p *Params) { p.CopyFrom(src) } }
 
 func (p *Params) MinRows(titleDepth int) int { return p.TitleStartRow + titleDepth }

@@ -35,7 +35,7 @@ type EORMReader[T any] struct {
 	lastErr    error
 }
 
-func NewEORM[T any](sheet Sheet, objType reflect.Type, opts ...Option) (*EORMReader[T], error) {
+func NewReader[T any](sheet Sheet, objType reflect.Type, opts ...Option) (*EORMReader[T], error) {
 	// 检查objType是否为结构体
 	if objType.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("eorm: objType must be a struct, got %s", objType.Kind())

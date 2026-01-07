@@ -43,6 +43,8 @@ type (
 	StreamSheet interface {
 		Next() bool
 		Current() (Row, error)
+		CurrentRowNumber() int
+		Skip(rowCount int) error
 		Close() error
 	}
 
@@ -51,6 +53,8 @@ type (
 		// Write write value to the cell(row, column), where both row and column start with 0.
 		// The valid value types are int64, float64, string, and bool.
 		Write(row, column int, value any) error
+		// Stream get StreamSheet of current sheet
+		Stream() (StreamSheet, error)
 	}
 )
 
