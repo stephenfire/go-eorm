@@ -51,13 +51,13 @@ func (w *WriteTestObj) String() string {
 		w.ID, w.Name, w.Email, w.Age, w.Active, math.BigIntForPrint(w.Score))
 }
 
-// TestNewWriter 测试NewWriter函数
-func TestNewWriter(t *testing.T) {
+func runWriterTest(t *testing.T, runner string,
+	run func(tmpFilePath string, wb Workbook, sheetWriter SheetWriter, writer *EORMWriter[WriteTestObj])) {
 	// 使用testdata中的现有文件作为模板
 	srcPath := filepath.Join("testdata", "write_template.xlsx")
 
 	// 创建临时副本
-	tmpFile, err := os.CreateTemp("", "test_writer_*.xlsx")
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("test_%s_*.xlsx", runner))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,431 +93,260 @@ func TestNewWriter(t *testing.T) {
 		t.Fatalf("NewWriter failed: %v", err)
 	}
 
-	if writer == nil {
-		t.Fatal("writer is nil")
-	}
+	run(tmpFilePath, wb, sheetWriter, writer)
+}
 
-	if writer.w != sheetWriter {
-		t.Error("writer.w does not match sheetWriter")
-	}
+// TestNewWriter 测试NewWriter函数
+func TestNewWriter(t *testing.T) {
+	runWriterTest(t, "writer",
+		func(tmpFilePath string, wb Workbook, sheetWriter SheetWriter, writer *EORMWriter[WriteTestObj]) {
+			if writer == nil {
+				t.Fatal("writer is nil")
+			}
 
-	if writer.rowMapper == nil {
-		t.Error("rowMapper is nil")
-	}
+			if writer.w != sheetWriter {
+				t.Error("writer.w does not match sheetWriter")
+			}
 
-	// 验证curRowIndex初始值
-	stream, err := sheetWriter.Stream()
-	if err != nil {
-		t.Fatal(err)
-	}
-	stream.Close()
-	// 2个空行+3层表头
-	if writer.curRowIndex != 5 {
-		t.Errorf("expected curRowIndex 1, got %d", writer.curRowIndex)
-	}
+			if writer.rowMapper == nil {
+				t.Error("rowMapper is nil")
+			}
+
+			// 2个空行+3层表头
+			if writer.curRowIndex != 5 {
+				t.Errorf("expected curRowIndex 1, got %d", writer.curRowIndex)
+			}
+		})
 }
 
 // TestWriterAppend 测试Append方法
 func TestWriterAppend(t *testing.T) {
-	// 使用testdata中的现有文件作为模板
-	srcPath := filepath.Join("testdata", "write_template.xlsx")
+	runWriterTest(t, "append",
+		func(tmpFilePath string, wb Workbook, sheetWriter SheetWriter, writer *EORMWriter[WriteTestObj]) {
+			// 测试数据
+			testObjs := []*WriteTestObj{
+				{
+					ID:     1,
+					Name:   "Alice",
+					Email:  "alice@example.com",
+					Age:    30,
+					Active: true,
+					Score:  big.NewInt(95),
+				},
+				{
+					ID:     2,
+					Name:   "Bob",
+					Email:  "bob@example.com",
+					Age:    25,
+					Active: false,
+					Score:  big.NewInt(85),
+				},
+				{
+					ID:     3,
+					Name:   "Charlie",
+					Email:  "charlie@example.com",
+					Age:    35,
+					Active: true,
+					Score:  big.NewInt(90),
+				},
+			}
 
-	// 创建临时副本
-	tmpFile, err := os.CreateTemp("", "test_append_*.xlsx")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpFilePath := tmpFile.Name()
-	tmpFile.Close()
+			// 测试Append
+			n, err := writer.Append(testObjs...)
+			if err != nil {
+				t.Fatalf("Append failed: %v", err)
+			}
 
-	// 复制文件
-	data, err := os.ReadFile(srcPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(tmpFilePath, data, 0644); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpFilePath)
+			if n != len(testObjs) {
+				t.Errorf("expected wrote %d objects, got %d", len(testObjs), n)
+			}
 
-	// 创建Workbook
-	wb, err := NewWorkbook(tmpFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer wb.Close()
+			if err = wb.Save(); err != nil {
+				t.Fatalf("save failed: %v", err)
+			}
+			// 保存文件
+			wb.Close()
 
-	// 获取SheetWriter
-	sheetWriter, err := wb.GetSheetWriter(0)
-	if err != nil {
-		t.Fatal(err)
-	}
+			// 重新打开文件验证写入的内容
+			wb2, err := NewWorkbook(tmpFilePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer wb2.Close()
 
-	// 创建Writer
-	writer, err := NewWriter[WriteTestObj](sheetWriter, reflect.TypeOf(WriteTestObj{}), WithTitleStartRow(2))
-	if err != nil {
-		t.Fatalf("NewWriter failed: %v", err)
-	}
+			sheet, err := wb2.GetSheet(0)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// 测试数据
-	testObjs := []*WriteTestObj{
-		{
-			ID:     1,
-			Name:   "Alice",
-			Email:  "alice@example.com",
-			Age:    30,
-			Active: true,
-			Score:  big.NewInt(95),
-		},
-		{
-			ID:     2,
-			Name:   "Bob",
-			Email:  "bob@example.com",
-			Age:    25,
-			Active: false,
-			Score:  big.NewInt(85),
-		},
-		{
-			ID:     3,
-			Name:   "Charlie",
-			Email:  "charlie@example.com",
-			Age:    35,
-			Active: true,
-			Score:  big.NewInt(90),
-		},
-	}
+			// 创建Reader验证数据
+			reader, err := NewReader[WriteTestObj](sheet, reflect.TypeOf(WriteTestObj{}), WithTitleStartRow(2))
+			if err != nil {
+				t.Fatalf("NewReader failed: %v", err)
+			}
 
-	// 测试Append
-	n, err := writer.Append(testObjs...)
-	if err != nil {
-		t.Fatalf("Append failed: %v", err)
-	}
+			// 验证读取的数据
+			i := 0
+			for reader.Next() {
+				if i >= len(testObjs) {
+					t.Fatalf("expected %d rows, got more", len(testObjs))
+				}
 
-	if n != len(testObjs) {
-		t.Errorf("expected wrote %d objects, got %d", len(testObjs), n)
-	}
+				rowObj, err := reader.Current()
+				if err != nil {
+					t.Fatal(err)
+				}
 
-	if err = wb.Save(); err != nil {
-		t.Fatalf("save failed: %v", err)
-	}
-	// 保存文件
-	wb.Close()
+				if !testObjs[i].Equals(rowObj) {
+					t.Errorf("row %d mismatch: expected %v, got %v", i, testObjs[i], rowObj)
+				}
+				i++
+			}
 
-	// 重新打开文件验证写入的内容
-	wb2, err := NewWorkbook(tmpFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer wb2.Close()
+			if i != len(testObjs) {
+				t.Errorf("expected %d rows, got %d", len(testObjs), i)
+			}
+		})
 
-	sheet, err := wb2.GetSheet(0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// 创建Reader验证数据
-	reader, err := NewReader[WriteTestObj](sheet, reflect.TypeOf(WriteTestObj{}), WithTitleStartRow(2))
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
-
-	// 验证读取的数据
-	i := 0
-	for reader.Next() {
-		if i >= len(testObjs) {
-			t.Fatalf("expected %d rows, got more", len(testObjs))
-		}
-
-		rowObj, err := reader.Current()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !testObjs[i].Equals(rowObj) {
-			t.Errorf("row %d mismatch: expected %v, got %v", i, testObjs[i], rowObj)
-		}
-		i++
-	}
-
-	if i != len(testObjs) {
-		t.Errorf("expected %d rows, got %d", len(testObjs), i)
-	}
 }
 
 // TestWriterAppendWithNil 测试Append方法处理nil对象
 func TestWriterAppendWithNil(t *testing.T) {
-	// 使用testdata中的现有文件作为模板
-	srcPath := filepath.Join("testdata", "write_template.xlsx")
+	runWriterTest(t, "append_nil",
+		func(tmpFilePath string, wb Workbook, sheetWriter SheetWriter, writer *EORMWriter[WriteTestObj]) {
+			// 混合nil和非nil对象
+			testObjs := []*WriteTestObj{
+				{
+					ID:     1,
+					Name:   "Alice",
+					Email:  "alice@example.com",
+					Age:    30,
+					Active: true,
+					Score:  big.NewInt(95),
+				},
+				nil,
+				{
+					ID:     2,
+					Name:   "Bob",
+					Email:  "bob@example.com",
+					Age:    25,
+					Active: false,
+					Score:  big.NewInt(85),
+				},
+				nil,
+				nil,
+			}
 
-	// 创建临时副本
-	tmpFile, err := os.CreateTemp("", "test_append_nil_*.xlsx")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpFilePath := tmpFile.Name()
-	tmpFile.Close()
+			n, err := writer.Append(testObjs...)
+			if err != nil {
+				t.Fatalf("Append failed: %v", err)
+			}
 
-	// 复制文件
-	data, err := os.ReadFile(srcPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(tmpFilePath, data, 0644); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpFilePath)
+			// 应该只写入2个非nil对象
+			expectedWrote := 2
+			if n != expectedWrote {
+				t.Errorf("expected wrote %d objects, got %d", expectedWrote, n)
+			}
 
-	wb, err := NewWorkbook(tmpFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer wb.Close()
-
-	sheetWriter, err := wb.GetSheetWriter(0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	writer, err := NewWriter[WriteTestObj](sheetWriter, reflect.TypeOf(WriteTestObj{}), WithTitleStartRow(2))
-	if err != nil {
-		t.Fatalf("NewWriter failed: %v", err)
-	}
-
-	// 混合nil和非nil对象
-	testObjs := []*WriteTestObj{
-		{
-			ID:     1,
-			Name:   "Alice",
-			Email:  "alice@example.com",
-			Age:    30,
-			Active: true,
-			Score:  big.NewInt(95),
-		},
-		nil,
-		{
-			ID:     2,
-			Name:   "Bob",
-			Email:  "bob@example.com",
-			Age:    25,
-			Active: false,
-			Score:  big.NewInt(85),
-		},
-		nil,
-		nil,
-	}
-
-	n, err := writer.Append(testObjs...)
-	if err != nil {
-		t.Fatalf("Append failed: %v", err)
-	}
-
-	// 应该只写入2个非nil对象
-	expectedWrote := 2
-	if n != expectedWrote {
-		t.Errorf("expected wrote %d objects, got %d", expectedWrote, n)
-	}
-
-	// 验证curRowIndex
-	// 初始curRowIndex=5，写入2个对象后应该是7
-	if writer.curRowIndex != 7 {
-		t.Errorf("expected curRowIndex 7, got %d", writer.curRowIndex)
-	}
+			// 验证curRowIndex
+			// 初始curRowIndex=5，写入2个对象后应该是7
+			if writer.curRowIndex != 7 {
+				t.Errorf("expected curRowIndex 7, got %d", writer.curRowIndex)
+			}
+		})
 }
 
 // TestWriterSkipRows 测试SkipRows方法
 func TestWriterSkipRows(t *testing.T) {
-	// 使用testdata中的现有文件作为模板
-	srcPath := filepath.Join("testdata", "write_template.xlsx")
+	runWriterTest(t, "skip_rows",
+		func(tmpFilePath string, wb Workbook, sheetWriter SheetWriter, writer *EORMWriter[WriteTestObj]) {
+			// 记录初始curRowIndex
+			initialIndex := writer.curRowIndex
 
-	// 创建临时副本
-	tmpFile, err := os.CreateTemp("", "test_skip_rows_*.xlsx")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpFilePath := tmpFile.Name()
-	tmpFile.Close()
+			// 跳过3行
+			writer.SkipRows(3)
+			if writer.curRowIndex != initialIndex+3 {
+				t.Errorf("after SkipRows(3): expected curRowIndex %d, got %d", initialIndex+3, writer.curRowIndex)
+			}
 
-	// 复制文件
-	data, err := os.ReadFile(srcPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(tmpFilePath, data, 0644); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpFilePath)
+			// 写入一个对象
+			obj := &WriteTestObj{
+				ID:     1,
+				Name:   "Test",
+				Email:  "test@example.com",
+				Age:    20,
+				Active: true,
+				Score:  big.NewInt(100),
+			}
 
-	wb, err := NewWorkbook(tmpFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer wb.Close()
+			n, err := writer.Append(obj)
+			if err != nil {
+				t.Fatalf("Append after SkipRows failed: %v", err)
+			}
 
-	sheetWriter, err := wb.GetSheetWriter(0)
-	if err != nil {
-		t.Fatal(err)
-	}
+			if n != 1 {
+				t.Errorf("expected wrote 1 object, got %d", n)
+			}
 
-	writer, err := NewWriter[WriteTestObj](sheetWriter, reflect.TypeOf(WriteTestObj{}), WithTitleStartRow(2))
-	if err != nil {
-		t.Fatalf("NewWriter failed: %v", err)
-	}
-
-	// 记录初始curRowIndex
-	initialIndex := writer.curRowIndex
-
-	// 跳过3行
-	writer.SkipRows(3)
-	if writer.curRowIndex != initialIndex+3 {
-		t.Errorf("after SkipRows(3): expected curRowIndex %d, got %d", initialIndex+3, writer.curRowIndex)
-	}
-
-	// 写入一个对象
-	obj := &WriteTestObj{
-		ID:     1,
-		Name:   "Test",
-		Email:  "test@example.com",
-		Age:    20,
-		Active: true,
-		Score:  big.NewInt(100),
-	}
-
-	n, err := writer.Append(obj)
-	if err != nil {
-		t.Fatalf("Append after SkipRows failed: %v", err)
-	}
-
-	if n != 1 {
-		t.Errorf("expected wrote 1 object, got %d", n)
-	}
-
-	// 跳过2行
-	writer.SkipRows(2)
-	if writer.curRowIndex != initialIndex+3+1+2 {
-		t.Errorf("after SkipRows(2): expected curRowIndex %d, got %d", initialIndex+3+1+2, writer.curRowIndex)
-	}
+			// 跳过2行
+			writer.SkipRows(2)
+			if writer.curRowIndex != initialIndex+3+1+2 {
+				t.Errorf("after SkipRows(2): expected curRowIndex %d, got %d", initialIndex+3+1+2, writer.curRowIndex)
+			}
+		})
 }
 
 // TestWriterAppendEmpty 测试Append空参数
 func TestWriterAppendEmpty(t *testing.T) {
-	// 使用testdata中的现有文件作为模板
-	srcPath := filepath.Join("testdata", "write_template.xlsx")
+	runWriterTest(t, "append_empty",
+		func(tmpFilePath string, wb Workbook, sheetWriter SheetWriter, writer *EORMWriter[WriteTestObj]) {
+			// 测试空参数
+			n, err := writer.Append()
+			if err != nil {
+				t.Fatalf("Append with empty args failed: %v", err)
+			}
 
-	// 创建临时副本
-	tmpFile, err := os.CreateTemp("", "test_append_empty_*.xlsx")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpFilePath := tmpFile.Name()
-	tmpFile.Close()
+			if n != 0 {
+				t.Errorf("expected wrote 0 objects, got %d", n)
+			}
 
-	// 复制文件
-	data, err := os.ReadFile(srcPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(tmpFilePath, data, 0644); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpFilePath)
-
-	wb, err := NewWorkbook(tmpFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer wb.Close()
-
-	sheetWriter, err := wb.GetSheetWriter(0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	writer, err := NewWriter[WriteTestObj](sheetWriter, reflect.TypeOf(WriteTestObj{}), WithTitleStartRow(2))
-	if err != nil {
-		t.Fatalf("NewWriter failed: %v", err)
-	}
-
-	// 测试空参数
-	n, err := writer.Append()
-	if err != nil {
-		t.Fatalf("Append with empty args failed: %v", err)
-	}
-
-	if n != 0 {
-		t.Errorf("expected wrote 0 objects, got %d", n)
-	}
-
-	// curRowIndex应该不变
-	initialIndex := writer.curRowIndex
-	if writer.curRowIndex != initialIndex {
-		t.Errorf("curRowIndex changed from %d to %d after empty Append", initialIndex, writer.curRowIndex)
-	}
+			// curRowIndex应该不变
+			initialIndex := writer.curRowIndex
+			if writer.curRowIndex != initialIndex {
+				t.Errorf("curRowIndex changed from %d to %d after empty Append", initialIndex, writer.curRowIndex)
+			}
+		})
 }
 
 // TestWriterWithExistingData 测试在已有数据的sheet上写入
 func TestWriterWithExistingData(t *testing.T) {
-	// 使用testdata中的现有文件作为模板
-	srcPath := filepath.Join("testdata", "write_template.xlsx")
+	runWriterTest(t, "existing",
+		func(tmpFilePath string, wb Workbook, sheetWriter SheetWriter, writer *EORMWriter[WriteTestObj]) {
+			// 获取当前行号
+			currentRow := writer.curRowIndex
 
-	// 创建临时副本
-	tmpFile, err := os.CreateTemp("", "test_existing_*.xlsx")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpFilePath := tmpFile.Name()
-	tmpFile.Close()
+			// 写入新数据
+			obj := &WriteTestObj{
+				ID:     100,
+				Name:   "NewData",
+				Email:  "new@example.com",
+				Age:    40,
+				Active: true,
+				Score:  big.NewInt(99),
+			}
 
-	// 复制文件
-	data, err := os.ReadFile(srcPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(tmpFilePath, data, 0644); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpFilePath)
+			n, err := writer.Append(obj)
+			if err != nil {
+				t.Fatalf("Append failed: %v", err)
+			}
 
-	wb, err := NewWorkbook(tmpFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer wb.Close()
+			if n != 1 {
+				t.Errorf("expected wrote 1 object, got %d", n)
+			}
 
-	sheetWriter, err := wb.GetSheetWriter(0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// 创建Writer
-	writer, err := NewWriter[WriteTestObj](sheetWriter, reflect.TypeOf(WriteTestObj{}), WithTitleStartRow(2))
-	if err != nil {
-		t.Fatalf("NewWriter failed: %v", err)
-	}
-
-	// 获取当前行号
-	currentRow := writer.curRowIndex
-
-	// 写入新数据
-	obj := &WriteTestObj{
-		ID:     100,
-		Name:   "NewData",
-		Email:  "new@example.com",
-		Age:    40,
-		Active: true,
-		Score:  big.NewInt(99),
-	}
-
-	n, err := writer.Append(obj)
-	if err != nil {
-		t.Fatalf("Append failed: %v", err)
-	}
-
-	if n != 1 {
-		t.Errorf("expected wrote 1 object, got %d", n)
-	}
-
-	// 验证curRowIndex
-	if writer.curRowIndex != currentRow+1 { // +1 for new row
-		t.Errorf("expected curRowIndex %d, got %d", currentRow+1, writer.curRowIndex)
-	}
+			// 验证curRowIndex
+			if writer.curRowIndex != currentRow+1 { // +1 for new row
+				t.Errorf("expected curRowIndex %d, got %d", currentRow+1, writer.curRowIndex)
+			}
+		})
 }
