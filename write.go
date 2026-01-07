@@ -16,6 +16,7 @@ func NewWriter[T any](w SheetWriter, objType reflect.Type, opts ...Option) (*EOR
 		return nil, fmt.Errorf("eorm: objType must be a struct, got %s", objType.Kind())
 	}
 
+	opts = append(opts, WithWrite())
 	params := NewParams(opts...)
 	stream, err := w.Stream()
 	if err != nil {

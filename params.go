@@ -54,6 +54,7 @@ func (p *Params) CopyFrom(src *Params) *Params {
 	p.GenLastRowNoMerged = src.GenLastRowNoMerged
 	p.TitleStartRow = src.TitleStartRow
 	p.RequiredMatchLevel = src.RequiredMatchLevel
+	p.Writable = src.Writable
 	return p
 }
 
