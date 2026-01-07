@@ -430,7 +430,8 @@ func (m *ColumnMapper) getSliceCellValue(row Row, columnIndexes []int, params *P
 	}
 }
 
-// fieldValue 获取obj对象中对应属性的值，通过 getter 方法（如果存在），或直接返回属性值
+// fieldValue 获取obj对象中对应属性的值，通过 getter 方法（如果存在），或直接返回属性值。
+// 此时 obj 应是绑定getter方法的指针类型，当需要直接获取属性值时，需要去掉指针
 func (m *ColumnMapper) fieldValue(obj reflect.Value) (reflect.Value, error) {
 	if m.getter.exist {
 		method := m.getter.method
@@ -440,7 +441,7 @@ func (m *ColumnMapper) fieldValue(obj reflect.Value) (reflect.Value, error) {
 		}
 		return methodValue.Call([]reflect.Value{})[0], nil
 	} else {
-		return obj.Field(m.fieldIndex), nil
+		return obj.Elem().Field(m.fieldIndex), nil
 	}
 }
 

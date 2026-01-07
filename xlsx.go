@@ -108,6 +108,21 @@ func (x *xlsxWorkbook) GetStreamSheetByName(name string) (StreamSheet, error) {
 	return newXlsxRowIterator(x.f, name)
 }
 
+func (x *xlsxWorkbook) Save() error {
+	if err := x.f.Save(); err != nil {
+		return fmt.Errorf("excel/xlsx: %w", err)
+	}
+	return nil
+}
+
+func (x *xlsxWorkbook) WriteTo(w io.Writer) (int64, error) {
+	n, err := x.f.WriteTo(w)
+	if err != nil {
+		return n, fmt.Errorf("excel/xlsx: %w", err)
+	}
+	return n, nil
+}
+
 func (x *xlsxWorkbook) Close() error {
 	err := x.f.Close()
 	if err != nil {

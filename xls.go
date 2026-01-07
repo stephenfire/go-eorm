@@ -319,6 +319,9 @@ func (x *xlsWorkbook) GetSheetWriterByName(name string) (SheetWriter, error) {
 	return nil, ErrUnsupported
 }
 
+func (x *xlsWorkbook) Save() error                        { return ErrUnsupported }
+func (x *xlsWorkbook) WriteTo(_ io.Writer) (int64, error) { return 0, ErrUnsupported }
+
 func (x *xlsWorkbook) Close() error {
 	return nil
 }

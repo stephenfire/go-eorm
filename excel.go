@@ -36,6 +36,8 @@ type (
 		GetStreamSheetByName(name string) (StreamSheet, error)
 		GetSheetWriter(index int) (SheetWriter, error)
 		GetSheetWriterByName(name string) (SheetWriter, error)
+		Save() error
+		WriteTo(w io.Writer) (int64, error)
 		Close() error
 	}
 
