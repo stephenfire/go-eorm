@@ -52,6 +52,7 @@ type (
 
 	// SheetWriter used to write ORM object to excel sheet
 	SheetWriter interface {
+		GetSheetName() string
 		// Write write value to the cell(row, column), where both row and column start with 0.
 		// The valid value types are int64, float64, string, and bool.
 		Write(row, column int, value any) error

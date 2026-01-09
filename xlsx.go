@@ -261,6 +261,10 @@ func (x *xlsxRowIterator) Close() error {
 	return x.rows.Close()
 }
 
+func (x *xlsxWriter) GetSheetName() string {
+	return x.sheetName
+}
+
 func (x *xlsxWriter) Write(row, column int, value any) error {
 	col, err := excelize.ColumnNumberToName(column + 1)
 	if err != nil {

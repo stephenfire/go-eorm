@@ -113,8 +113,8 @@ func TestNewWriter(t *testing.T) {
 			}
 
 			// 2个空行+3层表头
-			if writer.curRowIndex != 5 {
-				t.Errorf("expected curRowIndex 1, got %d", writer.curRowIndex)
+			if writer.curRowIndex != 4 {
+				t.Errorf("expected curRowIndex 4, got %d", writer.curRowIndex)
 			}
 		})
 }
@@ -249,9 +249,9 @@ func TestWriterAppendWithNil(t *testing.T) {
 			}
 
 			// 验证curRowIndex
-			// 初始curRowIndex=5，写入2个对象后应该是7
-			if writer.curRowIndex != 7 {
-				t.Errorf("expected curRowIndex 7, got %d", writer.curRowIndex)
+			// 初始curRowIndex=4，写入2个对象后应该是6
+			if writer.curRowIndex != 6 {
+				t.Errorf("expected curRowIndex 6, got %d", writer.curRowIndex)
 			}
 		})
 }
@@ -300,6 +300,8 @@ func TestWriterSkipRows(t *testing.T) {
 func TestWriterAppendEmpty(t *testing.T) {
 	runWriterTest(t, "append_empty",
 		func(tmpFilePath string, wb Workbook, sheetWriter SheetWriter, writer *EORMWriter[WriteTestObj]) {
+			// curRowIndex应该不变
+			initialIndex := writer.curRowIndex
 			// 测试空参数
 			n, err := writer.Append()
 			if err != nil {
@@ -310,8 +312,6 @@ func TestWriterAppendEmpty(t *testing.T) {
 				t.Errorf("expected wrote 0 objects, got %d", n)
 			}
 
-			// curRowIndex应该不变
-			initialIndex := writer.curRowIndex
 			if writer.curRowIndex != initialIndex {
 				t.Errorf("curRowIndex changed from %d to %d after empty Append", initialIndex, writer.curRowIndex)
 			}

@@ -33,7 +33,7 @@ func NewWriter[T any](w SheetWriter, objType reflect.Type, opts ...Option) (*EOR
 	return &EORMWriter[T]{
 		w:           w,
 		rowMapper:   rowMapper,
-		curRowIndex: stream.CurrentRowNumber() + 1,
+		curRowIndex: stream.CurrentRowNumber(),
 	}, nil
 }
 
@@ -44,7 +44,8 @@ func (w *EORMWriter[T]) Append(objs ...*T) (int, error) {
 		if obj == nil {
 			continue
 		}
-		if err := w.rowMapper.Write(w.w, w.curRowIndex, obj); err != nil {
+		nextRow := w.curRowIndex + 1
+		if err := w.rowMapper.Write(w.w, nextRow, obj); err != nil {
 			return n, err
 		}
 		n += 1
@@ -55,4 +56,8 @@ func (w *EORMWriter[T]) Append(objs ...*T) (int, error) {
 
 func (w *EORMWriter[T]) SkipRows(n int) {
 	w.curRowIndex += n
+}
+
+func (w *EORMWriter[T]) CurrentRowIndex() int {
+	return w.curRowIndex
 }
