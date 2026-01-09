@@ -326,7 +326,7 @@ func (x *xlsWorkbook) Close() error {
 	return nil
 }
 
-func newWorkbook(wb xls.Workbook) *xlsWorkbook {
+func NewXlsWorkbookByFile(wb xls.Workbook) *xlsWorkbook {
 	nameMap := make(map[string]int)
 	sheets := wb.GetSheets()
 	for i, sheet := range sheets {
@@ -340,7 +340,7 @@ func NewXlsWorkbook(filePath string) (Workbook, error) {
 	if err != nil {
 		return nil, fmt.Errorf("excel/xls: %w", err)
 	}
-	return newWorkbook(workbook), nil
+	return NewXlsWorkbookByFile(workbook), nil
 }
 
 func NewXlsWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
@@ -348,5 +348,5 @@ func NewXlsWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
 	if err != nil {
 		return nil, fmt.Errorf("excel/xls: %w", err)
 	}
-	return newWorkbook(wb), nil
+	return NewXlsWorkbookByFile(wb), nil
 }

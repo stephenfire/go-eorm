@@ -36,7 +36,7 @@ type (
 	}
 )
 
-func newXlsxWorkbook(f *excelize.File) (Workbook, error) {
+func NewXlsxWorkbookByFile(f *excelize.File) (Workbook, error) {
 	names := f.GetSheetList()
 	nameSet := tools.NewKSet[string](names...)
 	return &xlsxWorkbook{names: names, nameSet: nameSet, f: f}, nil
@@ -47,7 +47,7 @@ func NewXlsxWorkbook(filePath string) (Workbook, error) {
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
-	return newXlsxWorkbook(f)
+	return NewXlsxWorkbookByFile(f)
 }
 
 func NewXlsxWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
@@ -55,7 +55,7 @@ func NewXlsxWorkbookByReadSeeker(reader io.ReadSeeker) (Workbook, error) {
 	if err != nil {
 		return nil, fmt.Errorf("excel/xlsx: %w", err)
 	}
-	return newXlsxWorkbook(f)
+	return NewXlsxWorkbookByFile(f)
 }
 
 func (x *xlsxWorkbook) SheetCount() int {
