@@ -213,22 +213,22 @@ type (
 		root  TreeItem[T]
 	}
 
-	branch[T any] map[string]TreeItem[T]
-	value[T any]  struct {
+	branchNode[T any] map[string]TreeItem[T]
+	valueNode[T any]  struct {
 		v *T
 	}
 )
 
-func newBranch[T any]() branch[T]                                  { return make(branch[T]) }
-func (b branch[T]) IsValue() bool                                  { return false }
-func (b branch[T]) HasValue() bool                                 { return false }
-func (b branch[T]) GetValue() (t T)                                { return t }
-func (b branch[T]) IsBranch() bool                                 { return true }
-func (b branch[T]) HasChild(title string) bool                     { _, ok := b[title]; return ok }
-func (b branch[T]) GetChild(title string) TreeItem[T]              { return b[title] }
-func (b branch[T]) SetChild(title string, child TreeItem[T]) error { b[title] = child; return nil }
-func (b branch[T]) ChildrenKeys() []string                         { return slices.Collect(maps.Keys(b)) }
-func (b branch[T]) Depth() (int, error) {
+func newBranch[T any]() branchNode[T]                                  { return make(branchNode[T]) }
+func (b branchNode[T]) IsValue() bool                                  { return false }
+func (b branchNode[T]) HasValue() bool                                 { return false }
+func (b branchNode[T]) GetValue() (t T)                                { return t }
+func (b branchNode[T]) IsBranch() bool                                 { return true }
+func (b branchNode[T]) HasChild(title string) bool                     { _, ok := b[title]; return ok }
+func (b branchNode[T]) GetChild(title string) TreeItem[T]              { return b[title] }
+func (b branchNode[T]) SetChild(title string, child TreeItem[T]) error { b[title] = child; return nil }
+func (b branchNode[T]) ChildrenKeys() []string                         { return slices.Collect(maps.Keys(b)) }
+func (b branchNode[T]) Depth() (int, error) {
 	if len(b) == 0 {
 		return 0, errors.New("eorm: empty branch")
 	}
@@ -261,20 +261,20 @@ func (b branch[T]) Depth() (int, error) {
 	return depth, nil
 }
 
-func (value[T]) IsValue() bool    { return true }
-func (v value[T]) HasValue() bool { return v.v != nil }
-func (v value[T]) GetValue() (t T) {
+func (valueNode[T]) IsValue() bool    { return true }
+func (v valueNode[T]) HasValue() bool { return v.v != nil }
+func (v valueNode[T]) GetValue() (t T) {
 	if v.v != nil {
 		return *v.v
 	}
 	return t
 }
-func (v value[T]) IsBranch() bool                         { return false }
-func (v value[T]) HasChild(_ string) bool                 { return false }
-func (v value[T]) GetChild(_ string) (t TreeItem[T])      { return t }
-func (v value[T]) SetChild(_ string, _ TreeItem[T]) error { return ErrUnsupported }
-func (v value[T]) ChildrenKeys() []string                 { return nil }
-func (v value[T]) Depth() (int, error)                    { return 0, nil }
+func (v valueNode[T]) IsBranch() bool                         { return false }
+func (v valueNode[T]) HasChild(_ string) bool                 { return false }
+func (v valueNode[T]) GetChild(_ string) (t TreeItem[T])      { return t }
+func (v valueNode[T]) SetChild(_ string, _ TreeItem[T]) error { return ErrUnsupported }
+func (v valueNode[T]) ChildrenKeys() []string                 { return nil }
+func (v valueNode[T]) Depth() (int, error)                    { return 0, nil }
 
 func (p *PathTree[T]) Depth() int { return p.depth }
 
@@ -322,7 +322,7 @@ func (p *PathTree[T]) Put(val T, path TitlePath) error {
 			if item.HasChild(title) {
 				return errors.New("eorm: path item already has child")
 			}
-			if err := item.SetChild(title, &value[T]{v: &val}); err != nil {
+			if err := item.SetChild(title, &valueNode[T]{v: &val}); err != nil {
 				return err
 			}
 		} else {

@@ -265,12 +265,19 @@ func (x *xlsxWriter) GetSheetName() string {
 	return x.sheetName
 }
 
-func (x *xlsxWriter) Write(row, column int, value any) error {
-	col, err := excelize.ColumnNumberToName(column + 1)
+func xlsxRowColumnToCellName(row, column int) (string, error) {
+	cell, err := excelize.CoordinatesToCellName(column+1, row+1)
 	if err != nil {
-		return fmt.Errorf("excel/xlsx: %w", err)
+		return "", fmt.Errorf("excel/xlsx: %w", err)
 	}
-	cell := fmt.Sprintf("%s%d", col, row+1)
+	return cell, nil
+}
+
+func (x *xlsxWriter) Write(row, column int, value any) error {
+	cell, err := xlsxRowColumnToCellName(row, column)
+	if err != nil {
+		return err
+	}
 	return x.f.SetCellValue(x.sheetName, cell, value)
 }
 
